@@ -1,0 +1,45 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Production-ready backend for ORGION Herbal Skincare & Lip Care E-commerce",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/**/*.test.js",
+    "seed": "node src/seed/seedData.js",
+    "email:preview": "node src/scripts/previewEmails.js"
+  },
+  "keywords": [
+    "skincare",
+    "ecommerce",
+    "express",
+    "mongodb",
+    "razorpay"
+  ],
+  "author": "ORGION",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.11.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.3.2",
+    "firebase-admin": "^13.8.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.2",
+    "morgan": "^1.10.1",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.5",
+    "pdfkit": "^0.18.0",
+    "razorpay": "^2.9.5",
+    "zod": "^4.3.6"
+  }
+}
