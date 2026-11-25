@@ -27,22 +27,16 @@ const app = express();
 
 app.set('trust proxy', 1);
 
+const corsOptions = {
+  origin: true,
+  credentials: true,
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-  })
-);
-
-const allowedOrigins = [env.CLIENT_CUSTOMER_URL, env.CLIENT_ADMIN_URL].filter(Boolean);
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error(`Origin ${origin} not allowed by CORS`));
-    },
-    credentials: true,
   })
 );
 
@@ -111,15 +105,18 @@ app.get('/sitemap.xml', async (req, res) => {
   }
 });
 
-app.use('/api/v1', apiLimiter);
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/addresses', addressRoutes);
-app.use('/api/v1', catalogRoutes);
-app.use('/api/v1/cart', cartRoutes);
-app.use('/api/v1/orders', orderRoutes);
-app.use('/api/v1/payments', paymentRoutes);
-app.use('/api/v1', siteRoutes);
-app.use('/api/v1/admin', adminRoutes);
+// Support both /api/v1/* and /v1/* prefixes so any deployed frontend base URL works cleanly
+for (const prefix of ['/api/v1', '/v1']) {
+  app.use(prefix, apiLimiter);
+  app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/addresses`, addressRoutes);
+  app.use(prefix, catalogRoutes);
+  app.use(`${prefix}/cart`, cartRoutes);
+  app.use(`${prefix}/orders`, orderRoutes);
+  app.use(`${prefix}/payments`, paymentRoutes);
+  app.use(prefix, siteRoutes);
+  app.use(`${prefix}/admin`, adminRoutes);
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);
