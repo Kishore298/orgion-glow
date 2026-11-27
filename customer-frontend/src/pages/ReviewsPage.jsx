@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
-import { BadgeCheck, MessageCircle, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import api from '../lib/api';
-import { formatDate, resolveImageUrl } from '../lib/format';
-import StarRating from '../components/common/StarRating';
+import ReviewCard from '../components/common/ReviewCard';
+import BackButton from '../components/common/BackButton';
 
 export default function ReviewsPage() {
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -44,14 +43,15 @@ export default function ReviewsPage() {
         />
       </Helmet>
 
-      <div className="mx-auto max-w-6xl px-6 pt-5 pb-14">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-3 sm:pt-4 pb-8 sm:pb-10">
+        <BackButton fallbackTo="/" label="Back" className="mb-1.5 sm:mb-2" />
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border pb-3.5 sm:pb-4">
           <div>
             <span className="label-micro">Community Love</span>
-            <h1 className="mt-2 font-serif text-4xl font-semibold text-primary-dark">
+            <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">
               Customer Reviews
             </h1>
-            <p className="mt-2 text-sm text-text-muted">
+            <p className="mt-1.5 text-xs sm:text-sm text-text-muted">
               Verified post-delivery ratings and heartfelt WhatsApp notes from our patrons across India.
             </p>
           </div>
@@ -80,76 +80,22 @@ export default function ReviewsPage() {
         </div>
 
         {isLoading ? (
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-44 rounded-3xl bg-surface-muted animate-pulse" />
+          <div className="mt-4 sm:mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-36 rounded-2xl bg-surface-muted animate-pulse" />
             ))}
           </div>
         ) : reviews.length === 0 ? (
-          <div className="py-20 text-center text-text-muted">No reviews found for this selection.</div>
+          <div className="py-12 text-center text-sm text-text-muted">No reviews found for this selection.</div>
         ) : (
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mt-4 sm:mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
             {reviews.map((rev) => (
-              <div key={rev._id} className="luxury-card p-6 flex flex-col justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <StarRating rating={rev.rating} size={15} />
-                    {rev.source === 'whatsapp' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-0.5 text-[11px] font-medium text-primary-dark">
-                        <MessageCircle size={11} />
-                        Customer feedback via WhatsApp
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-0.5 text-[11px] font-medium text-primary-dark">
-                        <BadgeCheck size={12} />
-                        Verified Purchase
-                      </span>
-                    )}
-                  </div>
-
-                  {rev.comment && (
-                    <p className="mt-4 text-sm leading-relaxed text-text">“{rev.comment}”</p>
-                  )}
-
-                  {rev.screenshot && (
-                    <button
-                      type="button"
-                      onClick={() => setLightboxImg(resolveImageUrl(rev.screenshot, 1200))}
-                      className="mt-3 block overflow-hidden rounded-xl border border-border"
-                    >
-                      <img
-                        src={resolveImageUrl(rev.screenshot, 300)}
-                        alt="WhatsApp review screenshot"
-                        className="h-24 w-24 object-cover"
-                      />
-                    </button>
-                  )}
-
-                  {rev.adminReply && (
-                    <div className="mt-4 rounded-xl bg-surface-muted p-3 text-xs text-text-muted border border-border">
-                      <strong className="text-primary-dark">ORGION Team:</strong> {rev.adminReply}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-5 pt-4 border-t border-border flex items-center justify-between gap-2 text-xs">
-                  <div>
-                    <span className="font-semibold text-text">{rev.reviewerName}</span>
-                    {rev.reviewerLocation && (
-                      <span className="text-text-muted"> · {rev.reviewerLocation}</span>
-                    )}
-                    <span className="block text-text-muted mt-0.5">{formatDate(rev.reviewDate)}</span>
-                  </div>
-                  {rev.product && (
-                    <Link
-                      to={`/product/${rev.product.slug}`}
-                      className="font-medium text-primary hover:underline text-right"
-                    >
-                      {rev.product.name}
-                    </Link>
-                  )}
-                </div>
-              </div>
+              <ReviewCard
+                key={rev._id}
+                review={rev}
+                showDate
+                onImageClick={setLightboxImg}
+              />
             ))}
           </div>
         )}
@@ -161,9 +107,8 @@ export default function ReviewsPage() {
                 key={p}
                 type="button"
                 onClick={() => setPage(p)}
-                className={`h-10 w-10 rounded-[10px] text-sm font-medium ${
-                  p === page ? 'bg-primary text-white' : 'border border-border bg-surface text-text'
-                }`}
+                className={`h-10 w-10 rounded-[10px] text-sm font-medium ${p === page ? 'bg-primary text-white' : 'border border-border bg-surface text-text'
+                  }`}
               >
                 {p}
               </button>
@@ -174,7 +119,7 @@ export default function ReviewsPage() {
 
       {lightboxImg && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-black/75 p-4"
           onClick={() => setLightboxImg(null)}
         >
           <button

@@ -28,6 +28,8 @@ import { useAuthStore } from '../stores/authStore';
 import { useSiteConfig } from '../hooks/useSiteConfig';
 import StarRating from '../components/common/StarRating';
 import ProductCard from '../components/common/ProductCard';
+import { showAddedToCartToast } from '../components/common/CartToast';
+import BackButton from '../components/common/BackButton';
 import WhatsAppButton from '../components/common/WhatsAppButton';
 import { PageSkeleton } from '../components/common/Skeletons';
 
@@ -127,8 +129,8 @@ export default function ProductDetailPage() {
     if (!canPurchase || adding) return;
     setAdding(true);
     try {
-      await addItem(product, qty, Boolean(user), true);
-      toast.success(`${product.name} added to bag`);
+      await addItem(product, qty, Boolean(user), false);
+      showAddedToCartToast({ product, qty });
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not add item');
     } finally {
@@ -194,6 +196,7 @@ export default function ProductDetailPage() {
       </Helmet>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-3 sm:pt-4 pb-10 sm:pb-12">
+        <BackButton fallbackTo="/shop" label="Back" />
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="label-micro flex items-center gap-2 mb-4 sm:mb-5">
           <Link to="/shop" className="hover:text-primary">Shop</Link>
@@ -430,11 +433,11 @@ export default function ProductDetailPage() {
                                     </div>
 
                                     {/* Product-level Reviews & Ratings */}
-                                      <section id="reviews-section" className="mt-12 pt-8 border-t border-border">
-                                        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                                      <section id="reviews-section" className="mt-7 sm:mt-10 pt-5 sm:pt-7 border-t border-border">
+                                        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                                           <div>
                                             <span className="label-micro">Verified Feedback</span>
-                                            <h2 className="mt-1 font-serif text-3xl font-semibold text-primary-dark">
+                                            <h2 className="mt-0.5 font-serif text-xl sm:text-2xl lg:text-3xl font-semibold text-primary-dark">
                                               Customer Reviews
                                             </h2>
                                           </div>
@@ -459,9 +462,9 @@ export default function ProductDetailPage() {
                                           </div>
                                         </div>
 
-                                        <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-8 rounded-3xl border border-border bg-surface p-6 sm:p-8">
-                                          <div className="md:col-span-4 flex flex-col justify-center items-center text-center border-b md:border-b-0 md:border-r border-border pb-6 md:pb-0 md:pr-6">
-                                            <span className="font-sans text-5xl font-semibold tabular-nums text-primary">
+                                        <div className="mt-4 sm:mt-6 grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 rounded-2xl sm:rounded-3xl border border-border bg-surface p-4 sm:p-6">
+                                          <div className="md:col-span-4 flex flex-col justify-center items-center text-center border-b md:border-b-0 md:border-r border-border pb-4 md:pb-0 md:pr-5">
+                                            <span className="font-sans text-4xl sm:text-5xl font-semibold tabular-nums text-primary">
                                               {Number(reviewSummary.ratingAvg || 0).toFixed(1)}
                                             </span>
                                             <div className="mt-2">
@@ -495,14 +498,14 @@ export default function ProductDetailPage() {
                                           </div>
                                         </div>
 
-                                        <div className="mt-8 space-y-4">
+                                        <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
                                           {reviews.length === 0 ? (
-                                            <p className="py-10 text-center text-sm text-text-muted">
+                                            <p className="py-8 text-center text-xs sm:text-sm text-text-muted">
                                               No reviews yet for this formulation.
                                             </p>
                                           ) : (
                                             reviews.map((rev) => (
-                                              <div key={rev._id} className="luxury-card p-6">
+                                              <div key={rev._id} className="luxury-card p-4 sm:p-5">
                                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                                   <div className="flex items-center gap-3">
                                                     <StarRating rating={rev.rating} size={15} showValue />
@@ -578,11 +581,11 @@ export default function ProductDetailPage() {
 
                                       {/* Explore Other Collection */}
                                       {related.length > 0 && (
-                                            <section className="mt-12">
-                                              <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">
+                                            <section className="mt-7 sm:mt-10">
+                                              <h2 className="font-serif text-xl sm:text-2xl font-semibold text-primary-dark">
                                                 Explore Other Collection
                                               </h2>
-                                                <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 items-stretch">
+                                                <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 items-stretch">
                                                   {related.map((rp) => (
                                                     <ProductCard key={rp._id} product={rp} />
                                                   ))}

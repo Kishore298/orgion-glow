@@ -38,28 +38,28 @@ export default function WhyUsSection() {
   return (
     <section
       id="why-us"
-      className="scroll-mt-24 relative overflow-hidden bg-surface-muted py-12 sm:py-18 lg:py-20 border-y border-border"
+      className="scroll-mt-24 relative overflow-hidden bg-surface-muted py-7 sm:py-10 lg:py-12 border-y border-border"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <RevealSection className="text-center max-w-2xl mx-auto">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1 text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.12em] text-primary-dark">
             <Sparkles size={12} /> Pure Botanical Craft
           </span>
-          <h2 className="mt-2.5 font-serif text-2xl sm:text-4xl font-semibold text-primary-dark">
+          <h2 className="mt-2 font-serif text-xl sm:text-2xl lg:text-3xl font-semibold text-primary-dark">
             Why ORGION
           </h2>
-          <p className="mt-2 text-xs sm:text-base text-text-muted leading-relaxed">
+          <p className="mt-1.5 text-xs sm:text-sm lg:text-base text-text-muted leading-relaxed">
             Every soap, night cream, and lip balm is thoughtfully formulated under our own roof with nature at its heart.
           </p>
         </RevealSection>
 
-        <RevealStaggerGrid className="mt-8 sm:mt-12 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <RevealStaggerGrid className="mt-5 sm:mt-7 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-5">
           {PILLARS.map(({ num, tag, icon: Icon, title, desc }) => (
             <RevealStaggerItem key={title}>
               <motion.div
                 whileHover={{ y: -4 }}
                 transition={{ duration: 0.25, ease: LUXURY_EASE }}
-                className="group relative flex h-full flex-col rounded-2xl border border-border bg-surface p-3.5 sm:p-6 shadow-card transition-all duration-300 hover:border-primary/40 hover:shadow-md"
+                className="group relative flex h-full flex-col rounded-2xl border border-border bg-surface p-3 sm:p-4 lg:p-5 shadow-card transition-all duration-300 hover:border-primary/40 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/15 transition-colors group-hover:bg-primary group-hover:text-white">

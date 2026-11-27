@@ -25,11 +25,20 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function cookieOptions(maxAgeMs) {
+function isSecureRequest(req) {
+  return Boolean(
+    env.NODE_ENV === 'production' ||
+      req?.secure ||
+      String(req?.headers?.['x-forwarded-proto'] || '').includes('https')
+  );
+}
+
+function cookieOptions(req, maxAgeMs) {
+  const crossSiteSecure = isSecureRequest(req);
   return {
     httpOnly: true,
-    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
-    secure: env.NODE_ENV === 'production',
+    sameSite: crossSiteSecure ? 'none' : 'lax',
+    secure: crossSiteSecure,
     maxAge: maxAgeMs,
     path: '/',
   };
@@ -71,10 +80,10 @@ async function issueSessionTokens(user, req, res) {
   await freshUser.save();
 
   const cookies = getCookieNames(req);
-  res.cookie(cookies.access, accessToken, cookieOptions(15 * 60 * 1000));
-  res.cookie(cookies.refresh, refreshToken, cookieOptions(30 * 24 * 60 * 60 * 1000));
+  res.cookie(cookies.access, accessToken, cookieOptions(req, 30 * 24 * 60 * 60 * 1000));
+  res.cookie(cookies.refresh, refreshToken, cookieOptions(req, 30 * 24 * 60 * 60 * 1000));
 
-  return { accessToken, user: sanitizeUser(freshUser) };
+  return { accessToken, refreshToken, user: sanitizeUser(freshUser) };
 }
 
 const register = asyncHandler(async (req, res) => {
@@ -148,8 +157,8 @@ const refresh = asyncHandler(async (req, res) => {
   if (!tokenEntry || (tokenEntry.usedAt && !recentlyRotated)) {
     user.refreshTokens = [];
     await user.save();
-    res.clearCookie(cookies.access, { path: '/' });
-    res.clearCookie(cookies.refresh, { path: '/' });
+    res.clearCookie(cookies.access, cookieOptions(req, 0));
+    res.clearCookie(cookies.refresh, cookieOptions(req, 0));
     throw new ApiError(401, 'Refresh token revoked. Please log in again.');
   }
 
@@ -172,8 +181,8 @@ const logout = asyncHandler(async (req, res) => {
       { $pull: { refreshTokens: { tokenHash } } }
     );
   }
-  res.clearCookie(cookies.access, { path: '/' });
-  res.clearCookie(cookies.refresh, { path: '/' });
+  res.clearCookie(cookies.access, cookieOptions(req, 0));
+  res.clearCookie(cookies.refresh, cookieOptions(req, 0));
   return sendSuccess(res, null, 'Logged out successfully');
 });
 

@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const env = require('../config/env');
 const { getRazorpay } = require('../config/razorpay');
 const { confirmOrderPaidAtomically } = require('../services/payment.service');
+const { releaseCouponUsageForOrder } = require('../services/coupon.service');
 const { retryFailedNotifications } = require('../services/notification.service');
 
 /**
@@ -53,6 +54,7 @@ async function runExpireAbandonedOrders() {
         note: 'Auto-expired after abandonment window',
       });
       await order.save();
+      await releaseCouponUsageForOrder(order._id);
     } catch (err) {
       console.error(`[Cron:ExpireOrders] Order ${order.orderNumber} error:`, err.message);
     }

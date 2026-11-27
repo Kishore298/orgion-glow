@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { MapPin, Plus, ShieldCheck, AlertCircle } from 'lucide-react';
+import { MapPin, Plus, ShieldCheck, AlertCircle, Tag, X, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { getErrorMessage } from '../lib/api';
 import { formatINR, handleImageError, isFallbackLogo, resolveImageUrl } from '../lib/format';
 import { useAuthStore } from '../stores/authStore';
 import { useCartStore } from '../stores/cartStore';
 import PincodeAddressForm from '../components/common/PincodeAddressForm';
+import BackButton from '../components/common/BackButton';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -22,10 +23,19 @@ export default function CheckoutPage() {
   const [emailInput, setEmailInput] = useState(user?.email || '');
   const [shippingQuote, setShippingQuote] = useState({
     serviceable: true,
-    charge: 0,
+    charge: null,
+    weightG: null,
+    slabs: null,
+    zoneName: '',
     message: '',
   });
   const [paying, setPaying] = useState(false);
+
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [couponNotice, setCouponNotice] = useState('');
 
   useEffect(() => {
     loadCart(true);
@@ -46,8 +56,8 @@ export default function CheckoutPage() {
   const activeAddress = addingNewAddress
     ? inlineAddress
     : selectedAddressId === 'inline'
-    ? inlineAddress
-    : (user?.addresses || []).find((a) => a._id === selectedAddressId);
+      ? inlineAddress
+      : (user?.addresses || []).find((a) => a._id === selectedAddressId);
 
   const fetchShippingQuote = async ({ pincode, state }) => {
     try {
@@ -61,8 +71,8 @@ export default function CheckoutPage() {
       if (res.data?.data) {
         setShippingQuote(res.data.data);
       }
-    } catch {
-      // ignore transient error
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not calculate shipping charge'));
     }
   };
 
@@ -71,7 +81,136 @@ export default function CheckoutPage() {
       fetchShippingQuote({ pincode: activeAddress.pincode, state: activeAddress.state });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAddress?.pincode, activeAddress?.state, subtotal]);
+  }, [activeAddress?.pincode, activeAddress?.state, subtotal, items.length]);
+
+  // Clear applied coupon if user logs out or switches account
+  useEffect(() => {
+    setAppliedCoupon(null);
+    setCouponError('');
+    setCouponNotice('');
+  }, [user?._id]);
+
+  // Keep applied coupon valid and recalculated when cart items or subtotal change
+  const cartSignature = items.map((i) => `${i.productId}:${i.qty}`).join('|');
+  useEffect(() => {
+    if (!appliedCoupon?.code) return;
+    if (items.length === 0) {
+      setAppliedCoupon(null);
+      return;
+    }
+
+    const minVal = appliedCoupon.rules?.minOrderValue;
+    if (minVal != null && Number(subtotal || 0) < Number(minVal)) {
+      setAppliedCoupon(null);
+      const msg = `Coupon removed because your order is below ₹${minVal}`;
+      setCouponNotice(msg);
+      toast.error(msg);
+      return;
+    }
+
+    let cancelled = false;
+    api
+      .post('/v1/coupons/validate', {
+        code: appliedCoupon.code,
+        cart: items.map((i) => ({ productId: i.productId, qty: i.qty })),
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const d = res.data?.data;
+        if (d) {
+          setAppliedCoupon({
+            code: d.coupon.code,
+            discountAmount: d.discountAmount,
+            rules: d.coupon,
+          });
+        }
+      })
+      .catch((err) => {
+        if (cancelled || err?.isAuthRedirect) return;
+        const msg = getErrorMessage(err, 'Coupon could not be re-applied');
+        setAppliedCoupon(null);
+        setCouponNotice(msg);
+        toast.error(msg);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartSignature, subtotal]);
+
+  const handleApplyCoupon = async (e) => {
+    if (e) e.preventDefault();
+    if (applyingCoupon) return;
+
+    setCouponError('');
+    setCouponNotice('');
+
+    const cleaned = String(couponInput || '')
+      .trim()
+      .replace(/\s+/g, '')
+      .toUpperCase();
+    setCouponInput(cleaned);
+
+    if (!cleaned) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+    if (!/^[A-Z0-9_-]{3,20}$/.test(cleaned)) {
+      setCouponError('Coupon code must be 3–20 letters or numbers');
+      return;
+    }
+    if (items.length === 0) {
+      setCouponError('Your bag is empty');
+      return;
+    }
+    if (!user?._id) {
+      setCouponError('Please sign in to use a coupon');
+      return;
+    }
+    if (appliedCoupon) {
+      if (appliedCoupon.code === cleaned) {
+        setCouponError('This coupon is already applied');
+      } else {
+        setCouponError('Remove the current coupon to apply a new one');
+      }
+      return;
+    }
+
+    setApplyingCoupon(true);
+    try {
+      const res = await api.post('/v1/coupons/validate', {
+        code: cleaned,
+        cart: items.map((i) => ({ productId: i.productId, qty: i.qty })),
+      });
+      const d = res.data?.data;
+      if (d) {
+        setAppliedCoupon({
+          code: d.coupon.code,
+          discountAmount: d.discountAmount,
+          rules: d.coupon,
+        });
+        setCouponInput('');
+        toast.success(`Coupon ${d.coupon.code} applied! You save ${formatINR(d.discountAmount)}`);
+      }
+    } catch (err) {
+      if (err?.isAuthRedirect) {
+        toast.error('Session expired. Please sign in again.');
+        return;
+      }
+      const msg = getErrorMessage(err, 'Invalid coupon code');
+      setCouponError(msg);
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError('');
+    setCouponNotice('');
+    toast.success('Coupon removed');
+  };
 
   const handleSaveInlineAddress = async (values) => {
     if (saveToProfile) {
@@ -100,6 +239,43 @@ export default function CheckoutPage() {
       setAddingNewAddress(false);
     }
     fetchShippingQuote({ pincode: values.pincode, state: values.state });
+  };
+
+  const handleDeleteSavedAddress = async (e, addrId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm('Delete this saved address?')) return;
+    try {
+      const res = await api.delete(`/v1/addresses/${addrId}`);
+      const remaining = Array.isArray(res.data?.data)
+        ? res.data.data
+        : (user?.addresses || []).filter((a) => a._id !== addrId);
+      useAuthStore.setState((s) => ({
+        user: s.user ? { ...s.user, addresses: remaining } : s.user,
+      }));
+      if (selectedAddressId === addrId) {
+        const nextAddr = remaining.find((a) => a.isDefault) || remaining[0];
+        if (nextAddr) {
+          setSelectedAddressId(nextAddr._id);
+        } else if (inlineAddress) {
+          setSelectedAddressId('inline');
+        } else {
+          setSelectedAddressId('');
+          setAddingNewAddress(true);
+          setShippingQuote({
+            serviceable: true,
+            charge: null,
+            weightG: null,
+            slabs: null,
+            zoneName: '',
+            message: '',
+          });
+        }
+      }
+      toast.success('Address deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
   };
 
   const handlePayNow = async () => {
@@ -138,6 +314,7 @@ export default function CheckoutPage() {
           ? { addressId: selectedAddressId }
           : { address: inlineAddress, saveAddress: saveToProfile }),
         ...(!user?.email ? { email: emailInput.trim() } : {}),
+        ...(appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
       };
 
       const res = await api.post('/v1/orders/checkout', payload);
@@ -201,7 +378,9 @@ export default function CheckoutPage() {
     );
   }
 
-  const grandTotal = Number(subtotal || 0) + Number(shippingQuote.charge || 0);
+  const couponDiscount = Number(appliedCoupon?.discountAmount || 0);
+  const grandTotal =
+    Math.max(0, Number(subtotal || 0) - couponDiscount) + Number(shippingQuote.charge || 0);
 
   return (
     <>
@@ -209,16 +388,19 @@ export default function CheckoutPage() {
         <title>Checkout — ORGION</title>
       </Helmet>
 
-      <div className="mx-auto max-w-6xl px-6 pt-5 pb-14">
-        <span className="label-micro">Secure Checkout</span>
-        <h1 className="mt-1 font-serif text-4xl font-semibold text-primary-dark">Complete Your Order</h1>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-3 sm:pt-4 pb-8 sm:pb-10">
+        <BackButton fallbackTo="/cart" label="Back to Bag" className="mb-1.5 sm:mb-2" />
+        <span className="label-micro block">Secure Checkout</span>
+        <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">
+          Complete Your Order
+        </h1>
 
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-7">
           {/* Left: Email (if missing) + Step 1 Address */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="lg:col-span-7 space-y-4 sm:space-y-5">
             {!user?.email && (
-              <div className="luxury-card p-6 border-amber-300 bg-amber-50/50">
-                <h2 className="font-serif text-xl font-semibold text-text">
+              <div className="luxury-card p-4 sm:p-5 border-amber-300 bg-amber-50/50">
+                <h2 className="font-serif text-lg sm:text-xl font-semibold text-text">
                   Add Your Email Address
                 </h2>
                 <p className="mt-1 text-xs text-text-muted">
@@ -234,11 +416,11 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            <div className="luxury-card p-6 sm:p-8">
-              <div className="flex items-center justify-between gap-4 mb-5">
-                <div className="flex items-center gap-2.5">
-                  <MapPin size={19} className="text-primary" />
-                  <h2 className="font-serif text-2xl font-semibold text-text">1. Delivery Address</h2>
+            <div className="luxury-card p-4 sm:p-5 lg:p-6">
+              <div className="flex items-center justify-between gap-3 mb-3.5 sm:mb-4">
+                <div className="flex items-center gap-2 sm:gap-2.5">
+                  <MapPin size={18} className="text-primary shrink-0" />
+                  <h2 className="font-serif text-lg sm:text-xl font-semibold text-text">1. Delivery Address</h2>
                 </div>
                 {!addingNewAddress && (
                   <button
@@ -256,11 +438,10 @@ export default function CheckoutPage() {
                   {(user?.addresses || []).map((addr) => (
                     <label
                       key={addr._id}
-                      className={`flex items-start gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${
-                        selectedAddressId === addr._id
-                          ? 'border-primary bg-primary-soft/30'
-                          : 'border-border bg-surface'
-                      }`}
+                      className={`flex items-start gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${selectedAddressId === addr._id
+                        ? 'border-primary bg-primary-soft/30'
+                        : 'border-border bg-surface'
+                        }`}
                     >
                       <input
                         type="radio"
@@ -269,13 +450,24 @@ export default function CheckoutPage() {
                         onChange={() => setSelectedAddressId(addr._id)}
                         className="mt-1 text-primary focus:ring-primary"
                       />
-                      <div className="text-sm">
-                        <p className="font-semibold text-text">
-                          {addr.fullName}{' '}
-                          <span className="ml-2 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium uppercase text-text-muted">
-                            {addr.type}
-                          </span>
-                        </p>
+                      <div className="flex-1 min-w-0 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-semibold text-text">
+                            {addr.fullName}{' '}
+                            <span className="ml-2 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium uppercase text-text-muted">
+                              {addr.type}
+                            </span>
+                          </p>
+                          <button
+                            type="button"
+                            aria-label={`Delete ${addr.fullName} address`}
+                            onClick={(e) => handleDeleteSavedAddress(e, addr._id)}
+                            className="rounded-lg p-1 text-text-muted transition-colors hover:bg-red-50 hover:text-status-danger shrink-0"
+                            title="Delete address"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                         <p className="mt-1 text-text-muted">
                           {addr.line1}
                           {addr.line2 ? `, ${addr.line2}` : ''}
@@ -290,11 +482,10 @@ export default function CheckoutPage() {
 
                   {inlineAddress && (
                     <label
-                      className={`flex items-start gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${
-                        selectedAddressId === 'inline'
-                          ? 'border-primary bg-primary-soft/30'
-                          : 'border-border bg-surface'
-                      }`}
+                      className={`flex items-start gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${selectedAddressId === 'inline'
+                        ? 'border-primary bg-primary-soft/30'
+                        : 'border-border bg-surface'
+                        }`}
                     >
                       <input
                         type="radio"
@@ -352,8 +543,8 @@ export default function CheckoutPage() {
 
           {/* Right: Step 2 Summary & Step 3 Pay */}
           <div className="lg:col-span-5">
-            <div className="luxury-card bg-surface-muted p-6 sm:p-8 space-y-5 sticky top-24">
-              <h2 className="font-serif text-2xl font-semibold text-text">2. Order Summary</h2>
+            <div className="luxury-card bg-surface-muted p-4 sm:p-5 lg:p-6 space-y-3.5 sm:space-y-4 sticky top-20 sm:top-24">
+              <h2 className="font-serif text-lg sm:text-xl font-semibold text-text">2. Order Summary</h2>
 
               <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
                 {items.map((item) => (
@@ -362,9 +553,8 @@ export default function CheckoutPage() {
                       src={resolveImageUrl(item.image, 150)}
                       alt={item.name}
                       onError={handleImageError}
-                      className={`h-12 w-12 rounded-xl border border-border bg-surface ${
-                        isFallbackLogo(item.image) ? 'object-contain p-1.5' : 'object-cover'
-                      }`}
+                      className={`h-12 w-12 rounded-xl border border-border bg-surface ${isFallbackLogo(item.image) ? 'object-contain p-1.5' : 'object-cover'
+                        }`}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="truncate font-medium text-text">{item.name}</p>
@@ -377,15 +567,108 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              {/* Coupon Section */}
+              <div className="border-t border-border pt-4 space-y-2.5">
+                <label className="label-micro flex items-center gap-1.5">
+                  <Tag size={12} className="text-primary" /> Have a coupon?
+                </label>
+
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary-soft/45 px-3 py-2.5 text-xs">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold text-primary-dark">
+                          {appliedCoupon.code}
+                        </span>
+                        <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-white">
+                          -{formatINR(couponDiscount)}
+                        </span>
+                      </div>
+                      {appliedCoupon.rules?.description && (
+                        <p className="mt-0.5 text-[11px] text-text-muted truncate">
+                          {appliedCoupon.rules.description}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      aria-label="Remove coupon"
+                      className="rounded-lg p-1 text-text-muted hover:bg-surface hover:text-status-danger shrink-0"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyCoupon} className="flex items-stretch gap-2">
+                    <input
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value.replace(/\s+/g, '').toUpperCase());
+                        if (couponError) setCouponError('');
+                      }}
+                      placeholder="Enter coupon code"
+                      maxLength={20}
+                      className="input-field flex-1 font-mono uppercase text-xs h-10 py-0"
+                    />
+                    <button
+                      type="submit"
+                      disabled={applyingCoupon}
+                      className="btn-ghost shrink-0 h-10 min-h-[40px] py-0 px-4 text-xs font-semibold border-primary/40 text-primary hover:bg-primary hover:text-white disabled:opacity-60"
+                    >
+                      {applyingCoupon ? 'Checking...' : 'Apply'}
+                    </button>
+                  </form>
+                )}
+
+                {couponError && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-status-danger">
+                    <span className="flex items-center gap-1">
+                      <AlertCircle size={13} className="shrink-0" />
+                      {couponError}
+                    </span>
+                    {!user?._id && (
+                      <Link
+                        to="/login?redirect=%2Fcheckout"
+                        className="font-semibold text-primary underline"
+                      >
+                        Sign in
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {couponNotice && !couponError && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    {couponNotice}
+                  </p>
+                )}
+              </div>
+
               <div className="border-t border-border pt-4 space-y-2.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-text-muted">Subtotal</span>
                   <span>{formatINR(subtotal)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Shipping</span>
-                  <span>
-                    {shippingQuote.charge === 0 ? 'Free' : formatINR(shippingQuote.charge)}
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-primary font-medium">
+                    <span>Coupon ({appliedCoupon.code})</span>
+                    <span className="font-sans tabular-nums">- {formatINR(couponDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-start gap-2">
+                  <div>
+                    <span className="text-text-muted">Shipping</span>
+                    {shippingQuote.message && shippingQuote.charge !== null && (
+                      <p className="text-[11px] text-text-muted/90">{shippingQuote.message}</p>
+                    )}
+                  </div>
+                  <span className="font-sans tabular-nums">
+                    {shippingQuote.charge === null
+                      ? 'Enter pincode'
+                      : shippingQuote.charge === 0
+                        ? 'Free'
+                        : formatINR(shippingQuote.charge)}
                   </span>
                 </div>
                 {!shippingQuote.serviceable && (
@@ -396,7 +679,9 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
                   <span>Total</span>
-                  <span className="font-serif text-2xl text-primary">{formatINR(grandTotal)}</span>
+                  <span className="font-sans text-2xl font-semibold tabular-nums text-primary">
+                    {formatINR(grandTotal)}
+                  </span>
                 </div>
               </div>
 

@@ -9,6 +9,7 @@ const { getRazorpay } = require('../config/razorpay');
 const { toPaise, fromPaise } = require('../utils/currency');
 const { ApiError } = require('../utils/apiResponse');
 const { notify } = require('./notification.service');
+const { consumeCouponForOrder, releaseCouponUsageForOrder } = require('./coupon.service');
 
 function timingSafeCompare(a, b) {
   const bufA = Buffer.from(String(a || ''), 'utf8');
@@ -210,6 +211,30 @@ async function confirmOrderPaidAtomically(orderId, paymentDetails, deps = {}) {
   // Clear customer's cart once
   await CartModel.findOneAndUpdate({ user: updated.user }, { $set: { items: [] } });
 
+  // Atomically record coupon usage if a coupon was applied on this paid order
+  if (updated.couponCode) {
+    try {
+      await consumeCouponForOrder(
+        {
+          couponCode: updated.couponCode,
+          userId: updated.user,
+          orderId: updated._id,
+          discountAmount: updated.couponDiscountAmount || updated.discount || 0,
+        },
+        deps
+      );
+    } catch (couponErr) {
+      if (typeof OrderModel.findByIdAndUpdate === 'function') {
+        await OrderModel.findByIdAndUpdate(updated._id, {
+          $set: {
+            needsReview: true,
+            needsReviewReason: `Coupon verification at payment confirmation: ${couponErr.message}`,
+          },
+        });
+      }
+    }
+  }
+
   // Retire any older unpaid pending_payment checkout drafts for this customer
   if (typeof OrderModel.updateMany === 'function') {
     await OrderModel.updateMany(
@@ -348,6 +373,7 @@ async function processWebhookEvent({ eventId, eventType, payload }) {
       at: new Date(),
     });
     await order.save();
+    await releaseCouponUsageForOrder(order._id);
 
     notify('PAYMENT_FAILED', {
       order,
@@ -390,6 +416,9 @@ async function processWebhookEvent({ eventId, eventType, payload }) {
         .reduce((sum, r) => sum + Number(r.amount || 0), 0);
       order.paymentStatus = totalRefunded >= order.total ? 'refunded' : 'partially_refunded';
       await order.save();
+      if (order.paymentStatus === 'refunded') {
+        await releaseCouponUsageForOrder(order._id);
+      }
 
       notify('ORDER_STATUS_CHANGED', {
         order,
@@ -459,6 +488,9 @@ async function initiateAdminRefund({ orderId, amount, reason, adminUserId }) {
     order.paymentStatus = newTotalRefunded >= order.total ? 'refunded' : 'partially_refunded';
   }
   await order.save();
+  if (order.paymentStatus === 'refunded') {
+    await releaseCouponUsageForOrder(order._id);
+  }
 
   if (status === 'processed') {
     notify('ORDER_STATUS_CHANGED', {

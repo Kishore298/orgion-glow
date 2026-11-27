@@ -7,6 +7,7 @@ import {
   Download,
   ExternalLink,
   Mail,
+  Printer,
   RefreshCw,
   Truck,
   XCircle,
@@ -14,6 +15,7 @@ import {
 import toast from 'react-hot-toast';
 import api, { getErrorMessage } from '../lib/api';
 import { formatDateTime, formatINR, resolveImageUrl } from '../lib/format';
+import { printOrderInvoices, printOrderLabels } from '../lib/printDocuments';
 import { useAdminAuthStore } from '../stores/adminAuthStore';
 
 const NEXT_STATUS_OPTIONS = {
@@ -142,13 +144,18 @@ export default function AdminOrderDetailPage() {
   };
 
   const handleDownloadInvoice = async () => {
-    const res = await api.get(`/v1/admin/orders/${order._id}/invoice`, { responseType: 'blob' });
-    const url = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ORGION-Invoice-${order.orderNumber}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const res = await api.get(`/v1/admin/orders/${order._id}/invoice`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ORGION-Invoice-${order.orderNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Invoice downloaded');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
   };
 
   const handleResendConfirmation = async () => {
@@ -182,20 +189,20 @@ export default function AdminOrderDetailPage() {
   const addr = order.addressSnapshot || {};
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-3.5 sm:space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
           <Link to="/orders" className="text-xs text-primary hover:underline">
             ← Back to Orders
           </Link>
-          <div className="mt-1 flex items-center gap-3">
-            <h1 className="font-serif text-3xl font-semibold text-primary-dark">
+          <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="font-serif text-xl sm:text-2xl font-semibold text-primary-dark">
               {order.orderNumber}
             </h1>
-            <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-medium uppercase text-primary-dark">
+            <span className="rounded-full bg-primary-soft px-2.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium uppercase text-primary-dark">
               {order.status.replace(/_/g, ' ')}
             </span>
-            <span className="rounded-full bg-surface-muted border border-border px-3 py-1 text-xs uppercase">
+            <span className="rounded-full bg-surface-muted border border-border px-2.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs uppercase">
               {order.paymentStatus.replace(/_/g, ' ')}
             </span>
           </div>
@@ -203,6 +210,20 @@ export default function AdminOrderDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => printOrderLabels([order])}
+            className="btn-primary text-xs"
+          >
+            <Printer size={14} /> Print Label
+          </button>
+          <button
+            type="button"
+            onClick={() => printOrderInvoices([order])}
+            className="btn-ghost text-xs"
+          >
+            <Printer size={14} /> Print Invoice
+          </button>
           <button type="button" onClick={handleDownloadInvoice} className="btn-ghost text-xs">
             <Download size={14} /> Invoice PDF
           </button>
@@ -243,13 +264,13 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-5 lg:gap-6">
         {/* Left 8 cols */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 space-y-3.5 sm:space-y-5 lg:space-y-6">
           {/* ST Courier Tracking Card (Core Feature) */}
           <form
             onSubmit={handleSaveTracking}
-            className="admin-card border-primary/30 bg-primary-soft/20 p-6 space-y-4"
+            className="admin-card border-primary/30 bg-primary-soft/20 p-4 sm:p-5 lg:p-6 space-y-3 sm:space-y-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -332,8 +353,8 @@ export default function AdminOrderDetailPage() {
           </form>
 
           {/* Items */}
-          <div className="admin-card p-6">
-            <h2 className="font-serif text-xl font-semibold text-text mb-4">Order Items</h2>
+          <div className="admin-card p-4 sm:p-5 lg:p-6">
+            <h2 className="font-serif text-lg sm:text-xl font-semibold text-text mb-3 sm:mb-4">Order Items</h2>
             <div className="divide-y divide-border">
               {order.items.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-4 py-3 text-sm">
@@ -359,6 +380,16 @@ export default function AdminOrderDetailPage() {
                 <span>Subtotal</span>
                 <span className="font-sans tabular-nums">{formatINR(order.subtotal)}</span>
               </div>
+              {Number(order.couponDiscountAmount || order.discount || 0) > 0 && (
+                <div className="flex justify-between text-primary">
+                  <span>
+                    Coupon{order.couponCode ? ` (${order.couponCode})` : ''}
+                  </span>
+                  <span className="font-sans tabular-nums">
+                    - {formatINR(order.couponDiscountAmount || order.discount)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-text-muted">
                 <span>Shipping</span>
                 <span className="font-sans tabular-nums">{formatINR(order.shippingCharge)}</span>
@@ -558,7 +589,7 @@ export default function AdminOrderDetailPage() {
 
       {/* Refund Modal */}
       {showRefundModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+        <div className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-black/45 p-4">
           <form onSubmit={handleRefund} className="admin-card w-full max-w-md p-6 space-y-4">
             <h3 className="font-serif text-2xl font-semibold text-text">Initiate Refund</h3>
             <p className="text-xs text-text-muted">

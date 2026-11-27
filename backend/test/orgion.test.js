@@ -162,20 +162,66 @@ describe('ORGION Core Business Rules & Integrations', () => {
     });
   });
 
-  describe('3. Pluggable Shipping Service Stub Contract', () => {
-    it('returns the exact expected contract shape', async () => {
-      const quote = await calculateShipping({
-        pincode: '560038',
-        state: 'Karnataka',
-        subtotal: 899,
-        weight: 100,
-        items: [],
-      });
-      assert.equal(typeof quote.serviceable, 'boolean');
-      assert.equal(typeof quote.charge, 'number');
-      assert.equal(typeof quote.freeShippingApplied, 'boolean');
-      assert.equal(quote.serviceable, true);
-      assert.equal(quote.etaDays, null);
+  describe('3. Weight & Zone Shipping Calculation Rules', () => {
+    it('returns the exact contract shape and calculates packed weight slabs & zones accurately', async () => {
+      const noNetworkFetch = async () => ({ ok: false });
+
+      // 3 soaps (375g) + 2 creams (80g) + 1 lip balm (40g) + 200g outer packaging = 695g (1 slab)
+      const items = [
+        { name: 'GlowX Soap', qty: 3 },
+        { name: 'Avoglow Night Cream', qty: 2 },
+        { name: 'Pigment Free Lip Balm', qty: 1 },
+      ];
+
+      const tnQuote = await calculateShipping(
+        { pincode: '629001', state: 'Tamil Nadu', items },
+        { fetch: noNetworkFetch, skipCache: true }
+      );
+      assert.equal(tnQuote.serviceable, true);
+      assert.equal(tnQuote.weightG, 695);
+      assert.equal(tnQuote.slabs, 1);
+      assert.equal(tnQuote.zone, 1);
+      assert.equal(tnQuote.charge, 50);
+      assert.equal(tnQuote.freeShippingApplied, false);
+      assert.equal(tnQuote.etaDays, null);
+
+      const telangana695 = await calculateShipping(
+        { pincode: '500001', state: 'Telangana', items },
+        { fetch: noNetworkFetch, skipCache: true }
+      );
+      assert.equal(telangana695.zone, 2);
+      assert.equal(telangana695.charge, 90);
+
+      const exact1Kg = await calculateShipping(
+        { pincode: '600001', state: 'Tamil Nadu', weight: 1000, items: [] },
+        { fetch: noNetworkFetch, skipCache: true }
+      );
+      assert.equal(exact1Kg.slabs, 1);
+      assert.equal(exact1Kg.charge, 50);
+
+      const kar1400 = await calculateShipping(
+        { pincode: '560038', state: 'Karnataka', weight: 1400, items: [] },
+        { fetch: noNetworkFetch, skipCache: true }
+      );
+      assert.equal(kar1400.slabs, 2);
+      assert.equal(kar1400.zone, 2);
+      assert.equal(kar1400.charge, 180);
+
+      const pudu2500 = await calculateShipping(
+        { pincode: '605001', state: 'Puducherry', weight: 2500, items: [] },
+        { fetch: noNetworkFetch, skipCache: true }
+      );
+      assert.equal(pudu2500.slabs, 3);
+      assert.equal(pudu2500.zone, 2);
+      assert.equal(pudu2500.charge, 270);
+
+      const mh2500 = await calculateShipping(
+        { pincode: '400001', state: 'Maharashtra', weight: 2500, items: [] },
+        { fetch: noNetworkFetch, skipCache: true }
+      );
+      assert.equal(mh2500.slabs, 3);
+      assert.equal(mh2500.zone, 3);
+      assert.equal(mh2500.charge, 360);
     });
   });
 
@@ -481,6 +527,199 @@ describe('ORGION Core Business Rules & Integrations', () => {
 
       assert.equal(first, 'ORGION-26-00001');
       assert.equal(second, 'ORGION-26-00002');
+    });
+  });
+
+  describe('8. Coupon Validation, Discount Calculation, Concurrency & Release', () => {
+    const {
+      normalizeCouponCode,
+      computeCouponStatus,
+      calculateCouponDiscount,
+      validateCouponForCart,
+      consumeCouponForOrder,
+      releaseCouponUsageForOrder,
+    } = require('../src/services/coupon.service');
+
+    it('normalizes codes cleanly and computes status priority including limit_reached', () => {
+      assert.equal(normalizeCouponCode(' glow 10 '), 'GLOW10');
+      const now = new Date('2026-11-27T12:00:00Z');
+      assert.equal(
+        computeCouponStatus({ isActive: true, usedCount: 0, maxTotalUsage: 10 }, now),
+        'active'
+      );
+      assert.equal(
+        computeCouponStatus({ isActive: false, usedCount: 0, maxTotalUsage: 10 }, now),
+        'inactive'
+      );
+      assert.equal(
+        computeCouponStatus(
+          { isActive: false, disabledByLimit: true, usedCount: 5, maxTotalUsage: 5 },
+          now
+        ),
+        'limit_reached'
+      );
+      assert.equal(
+        computeCouponStatus({ isActive: true, startDate: '2026-12-01T00:00:00Z' }, now),
+        'scheduled'
+      );
+      assert.equal(
+        computeCouponStatus({ isActive: true, expiryDate: '2026-11-01T00:00:00Z' }, now),
+        'expired'
+      );
+    });
+
+    it('calculates percentage cap, flat cap at subtotal, and rounds to 2 decimals', () => {
+      assert.equal(
+        calculateCouponDiscount(
+          { discountType: 'percentage', discountValue: 10, maxDiscountCap: 150 },
+          1000
+        ),
+        100
+      );
+      assert.equal(
+        calculateCouponDiscount(
+          { discountType: 'percentage', discountValue: 20, maxDiscountCap: 150 },
+          2000
+        ),
+        150
+      );
+      assert.equal(
+        calculateCouponDiscount({ discountType: 'flat', discountValue: 200 }, 139),
+        139
+      );
+    });
+
+    it('enforces server validation rules in exact order and friendly shortfall errors', async () => {
+      const now = new Date('2026-11-27T12:00:00Z');
+      const baseCoupon = {
+        _id: 'c1',
+        code: 'GLOW10',
+        discountType: 'percentage',
+        discountValue: 10,
+        maxDiscountCap: 150,
+        minOrderValue: 500,
+        perUserLimit: 1,
+        maxTotalUsage: 5,
+        usedCount: 1,
+        isActive: true,
+      };
+      const FakeCoupon = { findOne: async ({ code }) => (code === 'GLOW10' ? { ...baseCoupon } : null) };
+      const FakeUsage = { countDocuments: async () => 0 };
+
+      // 1. Unauthenticated
+      await assert.rejects(
+        () => validateCouponForCart({ code: 'GLOW10', userId: null, items: [{ productId: 'p1', qty: 1 }] }, { subtotal: 600, Coupon: FakeCoupon, CouponUsage: FakeUsage, now }),
+        (err) => err.statusCode === 401 && err.message === 'Please sign in to use a coupon'
+      );
+
+      // 2. Invalid code
+      await assert.rejects(
+        () => validateCouponForCart({ code: 'NOPE', userId: 'u1', items: [{ productId: 'p1', qty: 1 }] }, { subtotal: 600, Coupon: FakeCoupon, CouponUsage: FakeUsage, now }),
+        (err) => err.message === 'Invalid coupon code'
+      );
+
+      // 8. Minimum order shortfall
+      await assert.rejects(
+        () => validateCouponForCart({ code: 'GLOW10', userId: 'u1', items: [{ productId: 'p1', qty: 1 }] }, { subtotal: 350, Coupon: FakeCoupon, CouponUsage: FakeUsage, now }),
+        (err) => err.message === 'Add ₹150 more to use this coupon'
+      );
+
+      // Valid case
+      const ok = await validateCouponForCart(
+        { code: ' glow10 ', userId: 'u1', items: [{ productId: 'p1', qty: 1 }] },
+        { subtotal: 1000, Coupon: FakeCoupon, CouponUsage: FakeUsage, now }
+      );
+      assert.equal(ok.discountAmount, 100);
+      assert.equal(ok.finalProductTotal, 900);
+    });
+
+    it('prevents concurrent over-usage, auto-disables at max limit, and releases on cancel/refund', async () => {
+      const couponState = {
+        _id: 'c1',
+        code: 'LAST1',
+        discountType: 'flat',
+        discountValue: 50,
+        maxTotalUsage: 1,
+        perUserLimit: 1,
+        usedCount: 0,
+        isActive: true,
+        disabledByLimit: false,
+      };
+      const usageRows = [];
+
+      const FakeCoupon = {
+        findOne: async ({ code }) => (code === 'LAST1' ? couponState : null),
+        findOneAndUpdate: async (query, update) => {
+          if (update.$inc?.usedCount === 1) {
+            if (!couponState.isActive) return null;
+            if (couponState.maxTotalUsage != null && couponState.usedCount >= couponState.maxTotalUsage) {
+              return null;
+            }
+            couponState.usedCount += 1;
+            return { ...couponState };
+          }
+          if (update.$inc?.usedCount === -1) {
+            if (couponState.usedCount <= 0) return null;
+            couponState.usedCount -= 1;
+            return { ...couponState };
+          }
+          return null;
+        },
+        findByIdAndUpdate: async (id, update) => {
+          Object.assign(couponState, update.$set || {});
+          return couponState;
+        },
+      };
+
+      const FakeUsage = {
+        findOne: async ({ order, status }) =>
+          usageRows.find((u) => u.order === order && u.status === status) || null,
+        countDocuments: async ({ user, status }) =>
+          usageRows.filter((u) => u.user === user && u.status === status).length,
+        create: async (doc) => {
+          const row = { _id: `u_${usageRows.length + 1}`, ...doc };
+          usageRows.push(row);
+          return row;
+        },
+        findOneAndUpdate: async ({ order, status }, update) => {
+          const row = usageRows.find((u) => u.order === order && u.status === status);
+          if (!row) return null;
+          Object.assign(row, update.$set || {});
+          return row;
+        },
+      };
+
+      // User 1 and User 2 race for the last remaining coupon use
+      const [first, second] = await Promise.allSettled([
+        consumeCouponForOrder(
+          { couponCode: 'LAST1', userId: 'user_1', orderId: 'ord_1', discountAmount: 50 },
+          { Coupon: FakeCoupon, CouponUsage: FakeUsage }
+        ),
+        consumeCouponForOrder(
+          { couponCode: 'LAST1', userId: 'user_2', orderId: 'ord_2', discountAmount: 50 },
+          { Coupon: FakeCoupon, CouponUsage: FakeUsage }
+        ),
+      ]);
+
+      const fulfilled = [first, second].filter((r) => r.status === 'fulfilled');
+      const rejected = [first, second].filter((r) => r.status === 'rejected');
+      assert.equal(fulfilled.length, 1);
+      assert.equal(rejected.length, 1);
+      assert.equal(rejected[0].reason.message, 'This coupon is no longer available');
+      assert.equal(couponState.usedCount, 1);
+      assert.equal(couponState.isActive, false);
+      assert.equal(couponState.disabledByLimit, true);
+
+      // Releasing ord_1 frees the coupon again and restores active status
+      const winningOrderId = fulfilled[0].value.usage.order;
+      const rel = await releaseCouponUsageForOrder(winningOrderId, {
+        Coupon: FakeCoupon,
+        CouponUsage: FakeUsage,
+      });
+      assert.equal(rel.released, true);
+      assert.equal(couponState.usedCount, 0);
+      assert.equal(couponState.isActive, true);
+      assert.equal(couponState.disabledByLimit, false);
     });
   });
 });

@@ -60,7 +60,9 @@ function ProductRateRow({ orderRef, item, existingRating, onSubmitted }) {
       toast.success(`Thank you for rating ${item.name}!`);
       onSubmitted();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      if (!err?.isAuthRedirect) {
+        toast.error(getErrorMessage(err));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -357,6 +359,14 @@ export default function OrderDetailPage() {
                 <span className="text-text-muted">Subtotal</span>
                 <span className="font-sans tabular-nums">{formatINR(order.subtotal)}</span>
               </div>
+              {Number(order.couponDiscountAmount || order.discount || 0) > 0 && (
+                <div className="flex justify-between text-primary">
+                  <span>Coupon{order.couponCode ? ` (${order.couponCode})` : ''}</span>
+                  <span className="font-sans tabular-nums">
+                    - {formatINR(order.couponDiscountAmount || order.discount)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-text-muted">Shipping</span>
                 <span className="font-sans tabular-nums">

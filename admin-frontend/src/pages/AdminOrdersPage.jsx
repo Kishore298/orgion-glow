@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Search, AlertTriangle, Truck } from 'lucide-react';
+import { Download, Search, AlertTriangle, Truck, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { getErrorMessage } from '../lib/api';
 import { formatDate, formatINR } from '../lib/format';
+import { printOrderInvoices, printOrderLabels } from '../lib/printDocuments';
 
 const ALLOWED_STATUS_TRANSITIONS = {
   pending_payment: ['confirmed', 'cancelled'],
@@ -41,6 +42,7 @@ export default function AdminOrdersPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
 
   const buildQueryString = (extra = {}) => {
     const params = new URLSearchParams({ page: String(page), limit: '20', ...extra });
@@ -103,13 +105,30 @@ export default function AdminOrdersPage() {
 
   const orders = data?.items || [];
   const totalPages = data?.totalPages || 1;
+  const selectedOrders = orders.filter((o) => selectedOrderIds.includes(o._id));
+  const allOnPageSelected =
+    orders.length > 0 && orders.every((o) => selectedOrderIds.includes(o._id));
+
+  const toggleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedOrderIds(orders.map((o) => o._id));
+    } else {
+      setSelectedOrderIds([]);
+    }
+  };
+
+  const toggleSelectOne = (id) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   return (
-    <div className="space-y-3.5 sm:space-y-4 lg:space-y-6">
+    <div className="space-y-3.5 sm:space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
         <div>
           <span className="label-micro">Fulfilment</span>
-          <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">Orders</h1>
+          <h1 className="mt-0.5 font-serif text-xl sm:text-2xl font-semibold text-primary-dark">Orders</h1>
         </div>
         <button type="button" onClick={handleExportCsv} className="btn-ghost text-xs">
           <Download size={14} /> Export CSV
@@ -159,7 +178,7 @@ export default function AdminOrdersPage() {
             }}
             className="input-field"
           >
-            <option value="">All Payments</option>
+            <option value="">All Successful Payments</option>
             <option value="paid">Paid</option>
             <option value="pending">Pending</option>
             <option value="failed">Failed</option>
@@ -225,12 +244,53 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
+      {/* Bulk print toolbar when orders selected */}
+      {selectedOrders.length > 0 && (
+        <div className="admin-card px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 bg-primary-soft/50 border-primary/25">
+          <span className="text-xs font-semibold text-primary-dark">
+            {selectedOrders.length} order{selectedOrders.length > 1 ? 's' : ''} selected
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => printOrderLabels(selectedOrders)}
+              className="btn-primary min-h-[34px] px-3 text-xs"
+            >
+              <Printer size={14} /> Print Labels (3×6)
+            </button>
+            <button
+              type="button"
+              onClick={() => printOrderInvoices(selectedOrders)}
+              className="btn-ghost min-h-[34px] px-3 text-xs bg-surface"
+            >
+              <Printer size={14} /> Print Invoices (3×6)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedOrderIds([])}
+              className="text-xs text-text-muted hover:text-text px-2"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="admin-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-surface-muted border-b border-border text-[10.5px] sm:text-[11px] uppercase tracking-wider text-text-muted">
               <tr>
+                <th className="px-3 py-2.5 sm:py-3 w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all orders"
+                    checked={allOnPageSelected}
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                    className="rounded text-primary cursor-pointer"
+                  />
+                </th>
                 <th className="px-3 sm:px-4 py-2.5 sm:py-3">Order</th>
                 <th className="px-3 sm:px-4 py-2.5 sm:py-3">Date</th>
                 <th className="px-3 sm:px-4 py-2.5 sm:py-3">Customer</th>
@@ -244,19 +304,20 @@ export default function AdminOrdersPage() {
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-text-muted">
+                  <td colSpan={9} className="px-4 py-8 text-center text-text-muted">
                     Loading orders...
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-text-muted">
+                  <td colSpan={9} className="px-4 py-8 text-center text-text-muted">
                     No matching orders.
                   </td>
                 </tr>
               ) : (
                 orders.map((o) => {
                   const allowedNext = ALLOWED_STATUS_TRANSITIONS[o.status] || [];
+                  const isSelected = selectedOrderIds.includes(o._id);
                   return (
                     <tr
                       key={o._id}
@@ -265,6 +326,18 @@ export default function AdminOrdersPage() {
                         o.needsReview ? 'bg-red-50/40' : ''
                       }`}
                     >
+                      <td
+                        className="px-3 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`Select order ${o.orderNumber}`}
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(o._id)}
+                          className="rounded text-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-3 font-medium">
                         <Link
                           to={`/orders/${o.orderNumber}`}

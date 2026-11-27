@@ -27,6 +27,7 @@ const listProducts = asyncHandler(async (req, res) => {
     inStock,
     featured,
     bestseller,
+    offer,
     sort = 'featured',
     page = '1',
     limit = '12',
@@ -63,6 +64,7 @@ const listProducts = asyncHandler(async (req, res) => {
   if (inStock === 'true') filter.inStock = true;
   if (featured === 'true') filter.isFeatured = true;
   if (bestseller === 'true') filter.isBestseller = true;
+  if (offer === 'true') filter.isOffer = true;
 
   const sortMap = {
     featured: { isBestseller: -1, isFeatured: -1, createdAt: -1 },

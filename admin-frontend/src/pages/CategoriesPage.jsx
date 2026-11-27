@@ -124,11 +124,11 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="space-y-3.5 sm:space-y-4 lg:space-y-6">
+    <div className="space-y-3.5 sm:space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
         <div>
           <span className="label-micro">Catalog Structure</span>
-          <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">Categories</h1>
+          <h1 className="mt-0.5 font-serif text-xl sm:text-2xl font-semibold text-primary-dark">Categories</h1>
         </div>
         <button type="button" onClick={openCreateModal} className="btn-primary">
           <Plus size={15} /> Add Category
@@ -223,7 +223,7 @@ export default function CategoriesPage() {
 
       {/* Add / Edit Category Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+        <div className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-black/45 p-4">
           <div className="admin-card relative w-full max-w-lg p-6 sm:p-7">
             <button
               type="button"

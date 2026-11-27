@@ -60,11 +60,11 @@ export default function ProductsPage() {
   const totalPages = data?.totalPages || 1;
 
   return (
-    <div className="space-y-3.5 sm:space-y-4 lg:space-y-6">
+    <div className="space-y-3.5 sm:space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
         <div>
           <span className="label-micro">Formulations</span>
-          <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">Products</h1>
+          <h1 className="mt-0.5 font-serif text-xl sm:text-2xl font-semibold text-primary-dark">Products</h1>
         </div>
         <Link to="/products/new" className="btn-primary">
           <Plus size={15} /> Add Product

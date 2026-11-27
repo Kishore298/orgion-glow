@@ -1,18 +1,18 @@
 import { create } from 'zustand';
-import api, { setInMemoryToken } from '../lib/api';
+import api, { clearStoredTokens, registerAuthFailureHandler, setInMemoryToken } from '../lib/api';
 
 export const useAuthStore = create((set, get) => ({
   user: null,
   isHydrated: false,
   isLoading: false,
 
-  setSession: (user, accessToken) => {
-    if (accessToken) setInMemoryToken(accessToken);
+  setSession: (user, accessToken, refreshToken) => {
+    if (accessToken) setInMemoryToken(accessToken, refreshToken);
     set({ user, isHydrated: true });
   },
 
   clearSession: () => {
-    setInMemoryToken(null);
+    clearStoredTokens();
     set({ user: null, isHydrated: true });
   },
 
@@ -24,7 +24,6 @@ export const useAuthStore = create((set, get) => ({
       set({ user: res.data?.data?.user || null, isHydrated: true, isLoading: false });
     } catch (err) {
       const status = err?.response?.status;
-      // Preserve active in-memory user on transient network/5xx/rate-limit errors
       if (status === 401 || status === 403 || !get().user) {
         set({ user: null, isHydrated: true, isLoading: false });
       } else {
@@ -44,8 +43,16 @@ export const useAuthStore = create((set, get) => ({
     } catch {
       // ignore
     } finally {
-      setInMemoryToken(null);
+      clearStoredTokens();
       set({ user: null });
     }
   },
 }));
+
+registerAuthFailureHandler(() => {
+  useAuthStore.getState().clearSession();
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    const dest = window.location.pathname + window.location.search;
+    window.location.assign(`/login?redirect=${encodeURIComponent(dest)}`);
+  }
+});

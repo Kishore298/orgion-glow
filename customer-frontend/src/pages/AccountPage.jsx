@@ -7,6 +7,8 @@ import api, { getErrorMessage } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useCartStore } from '../stores/cartStore';
 import PincodeAddressForm from '../components/common/PincodeAddressForm';
+import PasswordInput from '../components/common/PasswordInput';
+import BackButton from '../components/common/BackButton';
 import {
   disablePushNotifications,
   enablePushNotifications,
@@ -76,6 +78,7 @@ export default function AccountPage() {
   };
 
   const handleDeleteAddress = async (id) => {
+    if (!window.confirm('Delete this saved address?')) return;
     try {
       await api.delete(`/v1/addresses/${id}`);
       await hydrate();
@@ -128,6 +131,7 @@ export default function AccountPage() {
   const handleLogout = async () => {
     await logout();
     clearCart();
+    toast.success('Signed out');
     navigate('/');
   };
 
@@ -137,29 +141,32 @@ export default function AccountPage() {
         <title>My Account — ORGION</title>
       </Helmet>
 
-      <div className="mx-auto max-w-5xl px-6 pt-5 pb-14 space-y-8">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-3 sm:pt-4 pb-8 sm:pb-10 space-y-4 sm:space-y-5">
+        <div>
+          <BackButton fallbackTo="/" label="Back" className="mb-1.5 sm:mb-2" />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3.5 sm:pb-4">
           <div>
             <span className="label-micro">Welcome</span>
-            <h1 className="mt-1 font-serif text-4xl font-semibold text-primary-dark">
+            <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">
               {user?.name}
             </h1>
-            <p className="text-sm text-text-muted">{user?.mobile} · {user?.email}</p>
+            <p className="text-xs sm:text-sm text-text-muted">{user?.mobile} · {user?.email}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/account/orders" className="btn-primary">
-              <Package size={16} /> My Orders
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link to="/account/orders" className="btn-primary text-xs sm:text-sm">
+              <Package size={15} /> My Orders
             </Link>
-            <button type="button" onClick={handleLogout} className="btn-ghost">
-              <LogOut size={16} /> Sign Out
+            <button type="button" onClick={handleLogout} className="btn-ghost text-xs sm:text-sm">
+              <LogOut size={15} /> Sign Out
             </button>
           </div>
         </div>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
           {/* Profile details */}
-          <form onSubmit={handleSaveProfile} className="luxury-card p-6 space-y-4">
-            <h2 className="font-serif text-2xl font-semibold text-text">Personal Details</h2>
+          <form onSubmit={handleSaveProfile} className="luxury-card p-4 sm:p-5 space-y-3 sm:space-y-4">
+            <h2 className="font-serif text-lg sm:text-xl font-semibold text-text">Personal Details</h2>
             <div>
               <label className="label-micro block mb-1.5">Full Name</label>
               <input
@@ -193,25 +200,21 @@ export default function AccountPage() {
               </div>
               <div>
                 <label className="label-micro block mb-1.5">Current Password</label>
-                <input
+                <PasswordInput
                   required
-                  type="password"
                   value={passwords.currentPassword}
                   onChange={(e) =>
                     setPasswords({ ...passwords, currentPassword: e.target.value })
                   }
-                  className="input-field"
                 />
               </div>
               <div>
                 <label className="label-micro block mb-1.5">New Password</label>
-                <input
+                <PasswordInput
                   required
                   minLength={8}
-                  type="password"
                   value={passwords.newPassword}
                   onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
-                  className="input-field"
                 />
               </div>
               <button type="submit" disabled={savingPwd} className="btn-ghost">
@@ -249,11 +252,11 @@ export default function AccountPage() {
         </div>
 
         {/* Saved Addresses */}
-        <div className="luxury-card p-6 sm:p-8">
-          <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="luxury-card p-4 sm:p-6 lg:p-8">
+          <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
             <div className="flex items-center gap-2">
-              <MapPin size={19} className="text-primary" />
-              <h2 className="font-serif text-2xl font-semibold text-text">Saved Addresses</h2>
+              <MapPin size={18} className="text-primary" />
+              <h2 className="font-serif text-lg sm:text-2xl font-semibold text-text">Saved Addresses</h2>
             </div>
             {!showAddressForm && (
               <button

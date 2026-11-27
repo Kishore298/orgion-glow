@@ -6,6 +6,7 @@ const { normalizeTrackingId, isValidTrackingId } = require('../utils/strings');
 const { ApiError, asyncHandler, sendSuccess } = require('../utils/apiResponse');
 const { notify, resendNotificationLog } = require('../services/notification.service');
 const { initiateAdminRefund } = require('../services/payment.service');
+const { releaseCouponUsageForOrder } = require('../services/coupon.service');
 const { generateInvoicePdfBuffer } = require('../services/invoice.service');
 
 function orderRefQuery(ref) {
@@ -36,7 +37,11 @@ const listAdminOrders = asyncHandler(async (req, res) => {
 
   const filter = {};
   if (status) filter.status = status;
-  if (paymentStatus) filter.paymentStatus = paymentStatus;
+  if (paymentStatus) {
+    filter.paymentStatus = paymentStatus;
+  } else {
+    filter.paymentStatus = { $in: ['paid', 'partially_refunded', 'refunded'] };
+  }
   if (state) filter['addressSnapshot.state'] = new RegExp(`^${state.trim()}$`, 'i');
   if (needsReview === 'true') filter.needsReview = true;
   if (missingTracking === 'true') {
@@ -168,6 +173,10 @@ const updateAdminOrderStatus = asyncHandler(async (req, res) => {
     note,
   });
   await order.save();
+
+  if (newStatus === 'cancelled') {
+    await releaseCouponUsageForOrder(order._id);
+  }
 
   const latestEntry = order.statusHistory[order.statusHistory.length - 1];
   notify('ORDER_STATUS_CHANGED', {

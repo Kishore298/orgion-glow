@@ -65,6 +65,21 @@ const checkoutSchema = z.object({
   addressId: z.string().optional(),
   address: addressSchema.optional(),
   saveAddress: z.boolean().optional().default(true),
+  email: z.string().trim().email().optional(),
+  coupon_code: z.string().trim().max(30).optional(),
+  couponCode: z.string().trim().max(30).optional(),
+});
+
+const couponValidateSchema = z.object({
+  code: z.string().trim().min(1, 'Please enter a coupon code').max(30),
+  cart: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        qty: z.number().int().min(1).max(20),
+      })
+    )
+    .min(1, 'Your bag is empty'),
 });
 
 const verifyPaymentSchema = z.object({
@@ -96,6 +111,7 @@ module.exports = {
   addressSchema,
   cartItemSchema,
   checkoutSchema,
+  couponValidateSchema,
   verifyPaymentSchema,
   customerReviewSchema,
   contactSchema,

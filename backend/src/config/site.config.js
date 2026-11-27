@@ -33,7 +33,7 @@ const siteConfig = {
     ? Number(process.env.SHIPPING_STUB_CHARGE)
     : 0,
   // TODO: Confirm the official ST Courier tracking page URL
-  stCourierTrackingUrl: 'https://stcourier.com/track/courier-tracking',
+  stCourierTrackingUrl: 'https://stcourier.com',
   clientCustomerUrl: env.CLIENT_CUSTOMER_URL,
   clientAdminUrl: env.CLIENT_ADMIN_URL,
 };

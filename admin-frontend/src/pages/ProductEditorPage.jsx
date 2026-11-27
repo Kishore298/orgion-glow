@@ -17,7 +17,6 @@ export default function ProductEditorPage() {
     slug: '',
     category: '',
     price: '',
-    mrp: '',
     shortDescription: '',
     description: '',
     benefitsText: '',
@@ -28,6 +27,7 @@ export default function ProductEditorPage() {
     tagsText: '',
     isBestseller: false,
     isFeatured: false,
+    isOffer: false,
     inStock: true,
     status: 'active',
   });
@@ -58,7 +58,6 @@ export default function ProductEditorPage() {
         slug: existingProduct.slug || '',
         category: existingProduct.category?._id || existingProduct.category || '',
         price: existingProduct.price ?? '',
-        mrp: existingProduct.mrp ?? '',
         shortDescription: existingProduct.shortDescription || '',
         description: existingProduct.description || '',
         benefitsText: (existingProduct.benefits || []).join('\n'),
@@ -69,6 +68,7 @@ export default function ProductEditorPage() {
         tagsText: (existingProduct.tags || []).join(', '),
         isBestseller: Boolean(existingProduct.isBestseller),
         isFeatured: Boolean(existingProduct.isFeatured),
+        isOffer: Boolean(existingProduct.isOffer),
         inStock: existingProduct.inStock !== false,
         status: existingProduct.status || 'active',
       });
@@ -125,7 +125,6 @@ export default function ProductEditorPage() {
         slug: form.slug || undefined,
         category: form.category,
         price: Number(form.price),
-        mrp: form.mrp ? Number(form.mrp) : undefined,
         shortDescription: form.shortDescription,
         description: form.description,
         benefits: form.benefitsText
@@ -145,6 +144,7 @@ export default function ProductEditorPage() {
           .filter(Boolean),
         isBestseller: form.isBestseller,
         isFeatured: form.isFeatured,
+        isOffer: form.isOffer,
         inStock: form.inStock,
         status: form.status,
       };
@@ -166,20 +166,20 @@ export default function ProductEditorPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-3.5 sm:space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
           <Link to="/products" className="text-xs text-primary hover:underline">
             ← Back to Products
           </Link>
-          <h1 className="mt-1 font-serif text-3xl font-semibold text-primary-dark">
+          <h1 className="mt-1 font-serif text-xl sm:text-2xl font-semibold text-primary-dark">
             {isNew ? 'Add Product' : existingProduct?.name || 'Edit Product'}
           </h1>
         </div>
 
         {!isNew && existingProduct && (
-          <div className="flex items-center gap-4">
-            <div className="rounded-xl border border-border bg-surface px-4 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-4">
+            <div className="rounded-xl border border-border bg-surface px-3 sm:px-4 py-1.5 sm:py-2 text-xs">
               <span className="inline-flex items-center gap-1 font-semibold text-text">
                 <Star size={14} className="fill-gold text-gold" />
                 {Number(existingProduct.ratingAvg || 0).toFixed(1)}
@@ -196,9 +196,9 @@ export default function ProductEditorPage() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 space-y-6">
-          <div className="admin-card p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-5 lg:gap-6">
+        <div className="lg:col-span-8 space-y-3.5 sm:space-y-5 lg:space-y-6">
+          <div className="admin-card p-4 sm:p-6 space-y-3 sm:space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label-micro block mb-1.5">Product Name</label>
@@ -219,7 +219,7 @@ export default function ProductEditorPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <label className="label-micro block mb-1.5">Category</label>
                 <select
@@ -245,17 +245,6 @@ export default function ProductEditorPage() {
                   step="0.01"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="label-micro block mb-1.5">MRP (₹, optional)</label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={form.mrp}
-                  onChange={(e) => setForm({ ...form, mrp: e.target.value })}
                   className="input-field"
                 />
               </div>
@@ -421,6 +410,29 @@ export default function ProductEditorPage() {
                 className="h-4 w-4 text-primary"
               />
             </label>
+
+            <div className="flex items-center justify-between rounded-xl border border-border p-3">
+              <div>
+                <span className="text-sm font-medium block">Mark as Offer</span>
+                <span className="text-[11px] text-text-muted">Show in the storefront Offers page</span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.isOffer}
+                aria-label="Mark product as offer"
+                onClick={() => setForm((f) => ({ ...f, isOffer: !f.isOffer }))}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                  form.isOffer ? 'bg-primary' : 'bg-border'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                    form.isOffer ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
 
             <div>
               <label className="label-micro block mb-1.5">Weight (grams, optional)</label>

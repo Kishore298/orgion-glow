@@ -5,6 +5,7 @@ const Review = require('../models/Review');
 const { roundMoney } = require('../utils/currency');
 const { ApiError, asyncHandler, sendSuccess } = require('../utils/apiResponse');
 const { calculateShipping } = require('../services/shipping.service');
+const { validateCouponForCart } = require('../services/coupon.service');
 const { createRazorpayOrderForOrder } = require('../services/payment.service');
 const { generateInvoicePdfBuffer } = require('../services/invoice.service');
 const { recalcProductRating } = require('../services/rating.service');
@@ -46,7 +47,7 @@ function formatReviewerShortName(fullName) {
 }
 
 const checkout = asyncHandler(async (req, res) => {
-  const { cartItems, addressId, address, saveAddress, email } = req.body;
+  const { cartItems, addressId, address, saveAddress, email, coupon_code, couponCode } = req.body;
 
   // Ensure customer has an email (prompt legacy users if missing)
   if (!req.user.email) {
@@ -100,9 +101,9 @@ const checkout = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Delivery address is required');
   }
 
-  // Re-fetch products from DB and compute prices strictly server-side
+  // Re-fetch products from DB and compute prices & categories strictly server-side
   const productIds = cartItems.map((i) => i.productId);
-  const products = await Product.find({ _id: { $in: productIds } });
+  const products = await Product.find({ _id: { $in: productIds } }).populate('category', 'name slug');
   const productMap = new Map(products.map((p) => [String(p._id), p]));
 
   const orderItems = [];
@@ -134,20 +135,41 @@ const checkout = asyncHandler(async (req, res) => {
     });
   }
 
-  const shipping = await calculateShipping({
-    pincode: resolvedAddress.pincode,
-    state: resolvedAddress.state,
-    subtotal,
-    weight: totalWeight,
-    items: orderItems,
-  });
+  const shipping = await calculateShipping(
+    {
+      pincode: resolvedAddress.pincode,
+      state: resolvedAddress.state,
+      subtotal,
+      weight: totalWeight,
+      items: orderItems,
+    },
+    { productMap }
+  );
+
+  if (shipping.resolvedState) {
+    resolvedAddress.state = shipping.resolvedState;
+  }
 
   if (!shipping.serviceable) {
     throw new ApiError(400, shipping.message || 'Delivery is currently unavailable to this pincode');
   }
 
   const shippingCharge = roundMoney(shipping.charge);
-  const total = roundMoney(subtotal + shippingCharge);
+
+  // Server-side coupon validation (never trust client discount values)
+  const rawCouponCode = coupon_code || couponCode || '';
+  let appliedCouponCode = '';
+  let couponDiscountAmount = 0;
+  if (rawCouponCode && rawCouponCode.trim()) {
+    const couponResult = await validateCouponForCart(
+      { code: rawCouponCode, userId: req.user._id, items: orderItems },
+      { subtotal, productMap }
+    );
+    appliedCouponCode = couponResult.coupon.code;
+    couponDiscountAmount = couponResult.discountAmount;
+  }
+
+  const total = roundMoney(Math.max(0, subtotal - couponDiscountAmount) + shippingCharge);
 
   // Reuse an active unpaid pending_payment order for this customer instead of creating duplicates
   let order = await Order.findOne({
@@ -164,7 +186,9 @@ const checkout = asyncHandler(async (req, res) => {
     order.addressSnapshot = resolvedAddress;
     order.subtotal = subtotal;
     order.shippingCharge = shippingCharge;
-    order.discount = 0;
+    order.couponCode = appliedCouponCode;
+    order.couponDiscountAmount = couponDiscountAmount;
+    order.discount = couponDiscountAmount;
     order.total = total;
     order.expiresAt = new Date(Date.now() + 45 * 60 * 1000);
     await order.save();
@@ -178,7 +202,9 @@ const checkout = asyncHandler(async (req, res) => {
       addressSnapshot: resolvedAddress,
       subtotal,
       shippingCharge,
-      discount: 0,
+      couponCode: appliedCouponCode,
+      couponDiscountAmount,
+      discount: couponDiscountAmount,
       total,
       status: 'pending_payment',
       statusHistory: [
@@ -218,6 +244,13 @@ const retryPayment = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'This order is already paid');
   }
 
+  if (order.couponCode) {
+    await validateCouponForCart(
+      { code: order.couponCode, userId: req.user._id, items: order.items },
+      { subtotal: order.subtotal }
+    );
+  }
+
   const razorpay = await createRazorpayOrderForOrder(order, { forceNew: true });
   return sendSuccess(res, {
     order,
@@ -234,7 +267,10 @@ const getMyOrders = asyncHandler(async (req, res) => {
   const pageNum = Math.max(1, parseInt(req.query.page || '1', 10));
   const limitNum = Math.min(30, Math.max(1, parseInt(req.query.limit || '10', 10)));
 
-  const filter = { user: req.user._id, status: { $ne: 'expired' } };
+  const filter = {
+    user: req.user._id,
+    paymentStatus: { $in: ['paid', 'partially_refunded', 'refunded'] },
+  };
   const [items, total] = await Promise.all([
     Order.find(filter)
       .sort({ createdAt: -1 })

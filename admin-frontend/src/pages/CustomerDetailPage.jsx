@@ -23,54 +23,54 @@ export default function CustomerDetailPage() {
   const { customer, orders, ratingsGiven, analytics } = data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5 sm:space-y-4">
       <div>
         <Link to="/customers" className="text-xs text-primary hover:underline">
           ← Back to Customers
         </Link>
-        <h1 className="mt-1 font-serif text-3xl font-semibold text-primary-dark">{customer.name}</h1>
+        <h1 className="mt-1 font-serif text-xl sm:text-2xl font-semibold text-primary-dark">{customer.name}</h1>
         <p className="text-xs text-text-muted">
           {customer.mobile} · {customer.email || 'No email'} · Joined {formatDate(customer.createdAt)}
         </p>
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="admin-card p-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="admin-card p-3.5 sm:p-5">
           <span className="label-micro">Lifetime Value</span>
-          <p className="mt-2 font-sans text-2xl font-semibold tabular-nums text-primary-dark">
+          <p className="mt-1.5 sm:mt-2 font-sans text-xl sm:text-2xl font-semibold tabular-nums text-primary-dark">
             {formatINR(analytics.lifetimeValue)}
           </p>
-          <p className="mt-1 text-xs text-text-muted">{analytics.totalPaidOrders} paid orders</p>
+          <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-text-muted">{analytics.totalPaidOrders} paid orders</p>
         </div>
-        <div className="admin-card p-5">
+        <div className="admin-card p-3.5 sm:p-5">
           <span className="label-micro">Avg Order Value</span>
-          <p className="mt-2 font-sans text-2xl font-semibold tabular-nums text-primary-dark">
+          <p className="mt-1.5 sm:mt-2 font-sans text-xl sm:text-2xl font-semibold tabular-nums text-primary-dark">
             {formatINR(analytics.averageOrderValue)}
           </p>
-          <p className="mt-1 text-xs text-text-muted">
+          <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-text-muted">
             Freq: {analytics.orderFrequencyDays ? `${analytics.orderFrequencyDays}d` : '—'}
           </p>
         </div>
-        <div className="admin-card p-5">
+        <div className="admin-card p-3.5 sm:p-5">
           <span className="label-micro">Favorite Category</span>
-          <p className="mt-2 font-serif text-xl font-semibold text-text">
+          <p className="mt-1.5 sm:mt-2 font-serif text-lg sm:text-xl font-semibold text-text">
             {analytics.favoriteCategory || '—'}
           </p>
-          <p className="mt-1 text-xs text-text-muted">
+          <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-text-muted">
             Cancelled: {analytics.cancelledCount} · Ratings: {analytics.ratingsCount}
           </p>
         </div>
-        <div className="admin-card p-5">
+        <div className="admin-card p-3.5 sm:p-5">
           <span className="label-micro">Order Span</span>
-          <p className="mt-2 text-xs text-text">First: {formatDate(analytics.firstOrderDate)}</p>
-          <p className="mt-1 text-xs text-text">Last: {formatDate(analytics.lastOrderDate)}</p>
+          <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs text-text">First: {formatDate(analytics.firstOrderDate)}</p>
+          <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-text">Last: {formatDate(analytics.lastOrderDate)}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 admin-card p-6">
-          <h2 className="font-serif text-xl font-semibold text-text mb-4">Spend Over Time</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-5 lg:gap-6">
+        <div className="lg:col-span-7 admin-card p-4 sm:p-6">
+          <h2 className="font-serif text-lg sm:text-xl font-semibold text-text mb-3 sm:mb-4">Spend Over Time</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analytics.spendOverTime}>

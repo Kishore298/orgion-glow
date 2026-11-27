@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import api, { getErrorMessage } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useCartStore } from '../stores/cartStore';
+import PasswordInput from '../components/common/PasswordInput';
 
 const loginSchema = z.object({
   mobile: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number'),
@@ -41,8 +42,8 @@ export function LoginPage() {
   const onSubmit = async (values) => {
     try {
       const res = await api.post('/v1/auth/login', values);
-      const { user, accessToken } = res.data.data;
-      setSession(user, accessToken);
+      const { user, accessToken, refreshToken } = res.data.data;
+      setSession(user, accessToken, refreshToken);
       await syncGuestToUser();
       toast.success(`Welcome back, ${user.name.split(' ')[0]}`);
       navigate(redirect, { replace: true });
@@ -56,15 +57,15 @@ export function LoginPage() {
       <Helmet>
         <title>Sign In — ORGION</title>
       </Helmet>
-      <div className="mx-auto max-w-md px-6 pt-8 pb-16">
-        <div className="luxury-card p-8">
+      <div className="mx-auto max-w-md px-4 sm:px-6 pt-4 sm:pt-8 pb-10 sm:pb-16">
+        <div className="luxury-card p-5 sm:p-8">
           <span className="label-micro">Welcome Back</span>
-          <h1 className="mt-1 font-serif text-3xl font-semibold text-primary-dark">Sign In</h1>
-          <p className="mt-2 text-sm text-text-muted">
+          <h1 className="mt-1 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">Sign In</h1>
+          <p className="mt-1.5 text-xs sm:text-sm text-text-muted">
             Access your saved addresses, orders, and botanical rituals.
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="mt-7 space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="mt-5 sm:mt-7 space-y-3 sm:space-y-4">
             <div>
               <label className="label-micro block mb-1.5">Mobile Number</label>
               <input
@@ -89,14 +90,12 @@ export function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="new-password"
                 readOnly={!unlockInputs}
                 onFocus={() => setUnlockInputs(true)}
                 placeholder="Enter password"
                 {...register('password')}
-                className="input-field"
               />
               {errors.password && (
                 <p className="mt-1 text-xs text-status-danger">{errors.password.message}</p>
@@ -143,8 +142,8 @@ export function RegisterPage() {
   const onSubmit = async (values) => {
     try {
       const res = await api.post('/v1/auth/register', values);
-      const { user, accessToken } = res.data.data;
-      setSession(user, accessToken);
+      const { user, accessToken, refreshToken } = res.data.data;
+      setSession(user, accessToken, refreshToken);
       await syncGuestToUser();
       toast.success('Account created! Welcome to ORGION.');
       navigate(redirect, { replace: true });
@@ -158,15 +157,15 @@ export function RegisterPage() {
       <Helmet>
         <title>Create Account — ORGION</title>
       </Helmet>
-      <div className="mx-auto max-w-md px-6 pt-8 pb-16">
-        <div className="luxury-card p-8">
+      <div className="mx-auto max-w-md px-4 sm:px-6 pt-4 sm:pt-8 pb-10 sm:pb-16">
+        <div className="luxury-card p-5 sm:p-8">
           <span className="label-micro">Join ORGION</span>
-          <h1 className="mt-1 font-serif text-3xl font-semibold text-primary-dark">Create Account</h1>
-          <p className="mt-2 text-sm text-text-muted">
+          <h1 className="mt-1 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">Create Account</h1>
+          <p className="mt-1.5 text-xs sm:text-sm text-text-muted">
             Required for order updates, ST Courier tracking, and invoices.
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="mt-7 space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="mt-5 sm:mt-7 space-y-3 sm:space-y-4">
             <div>
               <label className="label-micro block mb-1.5">Full Name</label>
               <input
@@ -217,14 +216,12 @@ export function RegisterPage() {
 
             <div>
               <label className="label-micro block mb-1.5">Password (min 8 chars)</label>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="new-password"
                 readOnly={!unlockInputs}
                 onFocus={() => setUnlockInputs(true)}
                 placeholder="Create a password"
                 {...register('password')}
-                className="input-field"
               />
               {errors.password && (
                 <p className="mt-1 text-xs text-status-danger">{errors.password.message}</p>
@@ -329,13 +326,11 @@ export function ForgotPasswordPage() {
               </div>
               <div>
                 <label className="label-micro block mb-1.5">New Password</label>
-                <input
+                <PasswordInput
                   required
-                  type="password"
                   minLength={8}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="input-field"
                 />
               </div>
               <button type="submit" disabled={loading} className="btn-primary w-full">

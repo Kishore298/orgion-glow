@@ -19,7 +19,18 @@ const FALLBACK_CONFIG = {
     instagram: 'https://www.instagram.com/orgion.we',
   },
   freeShippingThreshold: null,
-  stCourierTrackingUrl: 'https://stcourier.com/track/courier-tracking',
+  stCourierTrackingUrl: 'https://stcourier.com',
+  heroImage: { url: '', alt: '' },
+  announcements: [],
+  shippingRules: {
+    soapWeightG: 125,
+    creamWeightG: 40,
+    lipBalmWeightG: 40,
+    outerPackagingG: 200,
+    zone1RatePerKg: 50,
+    zone2RatePerKg: 90,
+    zone3RatePerKg: 120,
+  },
 };
 
 export function useSiteConfig() {
@@ -29,7 +40,7 @@ export function useSiteConfig() {
       const res = await api.get('/v1/site-config');
       return res.data?.data || FALLBACK_CONFIG;
     },
-    staleTime: 1000 * 60 * 30,
+    staleTime: 1000 * 60 * 5,
     placeholderData: FALLBACK_CONFIG,
   });
 

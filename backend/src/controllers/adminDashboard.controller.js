@@ -56,6 +56,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const paidMatch = {
     paymentStatus: { $in: ['paid', 'partially_refunded'] },
   };
+  const successfulPaymentMatch = {
+    paymentStatus: { $in: ['paid', 'partially_refunded', 'refunded'] },
+  };
 
   const dateFormatMap = {
     daily: '%Y-%m-%d',
@@ -105,10 +108,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       },
     ]),
     Order.aggregate([
-      ...(Object.keys(dateMatch).length ? [{ $match: dateMatch }] : []),
+      { $match: { ...successfulPaymentMatch, ...dateMatch } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]),
-    Order.countDocuments({ createdAt: { $gte: todayStart } }),
+    Order.countDocuments({ ...successfulPaymentMatch, createdAt: { $gte: todayStart } }),
     Order.countDocuments({ paymentStatus: { $in: ['pending', 'failed'] } }),
     User.countDocuments({ role: 'customer' }),
     User.countDocuments({ role: 'customer', createdAt: { $gte: d30 } }),
@@ -200,7 +203,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         },
       },
     ]),
-    Order.find()
+    Order.find(successfulPaymentMatch)
       .populate('user', 'name mobile email')
       .sort({ createdAt: -1 })
       .limit(8)
@@ -216,6 +219,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       .select('orderNumber total payment.errorDescription addressSnapshot.fullName createdAt')
       .lean(),
     Order.find({
+      ...successfulPaymentMatch,
       status: { $in: ['confirmed', 'processing'] },
       $or: [{ 'tracking.trackingId': '' }, { 'tracking.trackingId': { $exists: false } }],
     })

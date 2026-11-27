@@ -2,6 +2,8 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { X, Plus, Minus, Trash2, ShoppingBag, AlertCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/api';
 import { useCartStore } from '../../stores/cartStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatINR, handleImageError, isFallbackLogo, resolveImageUrl } from '../../lib/format';
@@ -22,6 +24,29 @@ export default function MiniCartDrawer() {
   } = useCartStore();
 
   const hasOutOfStock = items.some((i) => i.inStock === false);
+
+  const handleQtyChange = async (item, nextQty) => {
+    try {
+      if (nextQty <= 0) {
+        await removeItem(item.productId, Boolean(user));
+        toast.success(`${item.name} removed from cart`, { id: 'cart-action' });
+      } else {
+        await updateQty(item.productId, nextQty, Boolean(user));
+        toast.success(`${item.name} quantity updated to ${nextQty}`, { id: 'cart-action' });
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  const handleRemove = async (item) => {
+    try {
+      await removeItem(item.productId, Boolean(user));
+      toast.success(`${item.name} removed from cart`, { id: 'cart-action' });
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -125,7 +150,7 @@ export default function MiniCartDrawer() {
                         <button
                           type="button"
                           aria-label={`Remove ${item.name}`}
-                          onClick={() => removeItem(item.productId, Boolean(user))}
+                          onClick={() => handleRemove(item)}
                           className="text-text-muted hover:text-status-danger"
                         >
                           <Trash2 size={15} />
@@ -143,7 +168,7 @@ export default function MiniCartDrawer() {
                           <button
                             type="button"
                             aria-label="Decrease quantity"
-                            onClick={() => updateQty(item.productId, item.qty - 1, Boolean(user))}
+                            onClick={() => handleQtyChange(item, item.qty - 1)}
                             className="px-2 py-1 text-text-muted hover:text-text"
                           >
                             <Minus size={13} />
@@ -152,7 +177,7 @@ export default function MiniCartDrawer() {
                           <button
                             type="button"
                             aria-label="Increase quantity"
-                            onClick={() => updateQty(item.productId, item.qty + 1, Boolean(user))}
+                            onClick={() => handleQtyChange(item, item.qty + 1)}
                             className="px-2 py-1 text-text-muted hover:text-text"
                           >
                             <Plus size={13} />

@@ -15,8 +15,10 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
+import OffersPage from './pages/OffersPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import ReviewsPage from './pages/ReviewsPage';
+import NotFoundPage from './pages/NotFoundPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
@@ -26,7 +28,6 @@ import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import { LoginPage, RegisterPage, ForgotPasswordPage } from './pages/AuthPages';
 import {
-  OurStoryPage,
   TermsPage,
   PrivacyPage,
   ShippingReturnsPage,
@@ -42,21 +43,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-function NotFoundPage() {
-  return (
-    <div className="mx-auto max-w-xl px-6 py-24 text-center">
-      <span className="label-micro">404</span>
-      <h1 className="mt-2 font-serif text-4xl font-semibold text-primary-dark">Page Not Found</h1>
-      <p className="mt-3 text-sm text-text-muted">
-        The botanical path you followed doesn’t exist.
-      </p>
-      <Link to="/" className="btn-primary mt-6">
-        Return Home
-      </Link>
-    </div>
-  );
-}
 
 function AppBootstrap({ children }) {
   const hydrate = useAuthStore((s) => s.hydrate);
@@ -107,6 +93,7 @@ function AnimatedRoutes() {
       <Routes location={location}>
         <Route path="/" element={<HomePage />} />
         <Route path="/shop" element={<ShopPage />} />
+        <Route path="/offers" element={<OffersPage />} />
         <Route path="/category/:slug" element={<ShopPage />} />
         <Route path="/product/:slug" element={<ProductDetailPage />} />
         <Route path="/reviews" element={<ReviewsPage />} />
@@ -116,7 +103,6 @@ function AnimatedRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        <Route path="/our-story" element={<OurStoryPage />} />
         <Route path="/terms-and-conditions" element={<TermsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPage />} />
         <Route path="/shipping-returns" element={<ShippingReturnsPage />} />
@@ -171,6 +157,8 @@ function AnimatedRoutes() {
           }
         />
 
+        <Route path="/ingredients" element={<NotFoundPage />} />
+        <Route path="/ingredients/*" element={<NotFoundPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </MotionPage>

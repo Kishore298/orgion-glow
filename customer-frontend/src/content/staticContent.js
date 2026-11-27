@@ -13,11 +13,6 @@ export const STATIC_PAGES_CONTENT = {
         body: 'Founded in August 2023 by Jenny and Vino, Orgion is a skincare brand born from a passion for creating our own skincare products. We focus on making handmade skincare products with carefully selected ingredients, love, and dedication. What started as a small business has grown into a brand serving customers across India. Our goal is to make skincare simple, accessible, and enjoyable for everyone while building trust through quality and care.',
       },
       {
-        id: 'ingredients',
-        title: 'Ingredients We Stand By',
-        body: 'We craft our formulations using carefully selected botanicals and skin-loving oils—such as Saffron Extract, Licorice (Mulethi), Vitamin E Oil, and nourishing natural butters—without harsh chemicals.',
-      },
-      {
         id: 'sustainability',
         title: 'Quality, Trust & Care',
         body: 'Making skincare simple, accessible, and enjoyable starts with honest small-batch craftsmanship, gentle formulations, and thoughtful packaging delivered safely across India.',

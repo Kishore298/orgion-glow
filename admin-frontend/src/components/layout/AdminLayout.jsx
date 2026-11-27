@@ -12,6 +12,9 @@ import {
   X,
   Bell,
   BellOff,
+  Megaphone,
+  Ticket,
+  Sliders,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAdminAuthStore } from '../../stores/adminAuthStore';
@@ -24,10 +27,13 @@ import {
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/orders', label: 'Orders', icon: ShoppingCart },
-  { to: '/products', label: 'Products', icon: Package },
   { to: '/categories', label: 'Categories', icon: FolderTree },
+  { to: '/products', label: 'Products', icon: Package },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/reviews', label: 'Reviews', icon: MessageSquareHeart },
+  { to: '/coupons', label: 'Coupons', icon: Ticket },
+  { to: '/announcements', label: 'Announcements', icon: Megaphone },
+  { to: '/settings', label: 'Settings', icon: Sliders },
 ];
 
 export default function AdminLayout({ children }) {
@@ -70,7 +76,9 @@ export default function AdminLayout({ children }) {
   };
 
   const handleLogout = async () => {
+    setSidebarOpen(false);
     await logout();
+    toast.success('Logged out');
     navigate('/login');
   };
 
@@ -108,9 +116,18 @@ export default function AdminLayout({ children }) {
         ))}
       </nav>
 
-      <div className="border-t border-border p-4 text-xs text-text-muted">
-        <p className="font-medium text-text truncate">{user?.name}</p>
-        <p className="uppercase tracking-wider text-[10px]">{user?.role}</p>
+      <div className="border-t border-border p-4 text-xs text-text-muted space-y-3">
+        <div>
+          <p className="font-medium text-text truncate">{user?.name}</p>
+          <p className="uppercase tracking-wider text-[10px]">{user?.role}</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="btn-ghost lg:hidden w-full justify-start min-h-[38px] px-3 text-xs text-status-danger border-red-200 hover:bg-red-50"
+        >
+          <LogOut size={14} /> Logout
+        </button>
       </div>
     </div>
   );
@@ -199,7 +216,7 @@ export default function AdminLayout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 p-3 sm:p-5 lg:p-8 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 max-w-7xl w-full mx-auto">{children}</main>
       </div>
     </div>
   );

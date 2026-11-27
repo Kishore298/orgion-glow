@@ -1,18 +1,27 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { MapPin, Mail, Phone } from 'lucide-react';
 import { useSiteConfig } from '../../hooks/useSiteConfig';
 import { OfficialInstagramIcon, OfficialWhatsAppIcon } from '../common/BrandIcons';
 
 export default function Footer() {
   const siteConfig = useSiteConfig();
+  const location = useLocation();
   const year = new Date().getFullYear();
   const addr = siteConfig.businessAddress || {};
 
+  const handleOurStoryClick = (e) => {
+    if (location.pathname === '/') {
+      e.preventDefault();
+      document.getElementById('our-story')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.history.replaceState(null, '', '/#our-story');
+    }
+  };
+
   return (
     <footer className="bg-footer-bg text-text border-t border-border">
-      <div className="mx-auto max-w-7xl px-5 sm:px-6 py-10 sm:py-16">
-        <div className="grid grid-cols-2 gap-8 sm:gap-10 md:grid-cols-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-7 sm:py-10">
+        <div className="grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-12">
           {/* Brand column */}
           <div className="col-span-2 md:col-span-4 space-y-3.5">
             <Link to="/" className="inline-block" aria-label="ORGION Home">
@@ -58,9 +67,13 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-xs sm:text-sm text-text-muted">
               <li><Link to="/shop" className="hover:text-primary">Shop</Link></li>
-              <li><Link to="/our-story" className="hover:text-primary">Our Story</Link></li>
-              <li><Link to="/our-story#ingredients" className="hover:text-primary">Ingredients</Link></li>
-              <li><Link to="/reviews" className="hover:text-primary">Reviews</Link></li>
+              <li><Link to="/offers" className="hover:text-primary">Offers</Link></li>
+              <li>
+                <Link to="/#our-story" onClick={handleOurStoryClick} className="hover:text-primary">
+                  Our Story
+                </Link>
+              </li>
+              <li><Link to="/reviews" className="hover:text-primary">Customer Reviews</Link></li>
             </ul>
           </div>
 

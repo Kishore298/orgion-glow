@@ -17,6 +17,10 @@ import CategoriesPage from './pages/CategoriesPage';
 import CustomersPage from './pages/CustomersPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import AdminReviewsPage from './pages/AdminReviewsPage';
+import CouponsPage from './pages/CouponsPage';
+import AnnouncementsPage from './pages/AnnouncementsPage';
+import StoreSettingsPage from './pages/StoreSettingsPage';
+import AdminNotFoundPage from './pages/AdminNotFoundPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -154,7 +158,38 @@ export default function App() {
               </AdminProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="/coupons"
+            element={
+              <AdminProtectedRoute>
+                <CouponsPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/announcements"
+            element={
+              <AdminProtectedRoute>
+                <AnnouncementsPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <AdminProtectedRoute>
+                <StoreSettingsPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <AdminProtectedRoute>
+                <AdminNotFoundPage />
+              </AdminProtectedRoute>
+            }
+          />
           </Routes>
         </BrowserRouter>
       </MotionConfig>

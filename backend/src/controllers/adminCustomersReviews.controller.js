@@ -34,11 +34,21 @@ const listAdminCustomers = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: 'orders',
-          let: { uid: '$_id' },
+          let: { uid: '$_id', umobile: { $ifNull: ['$mobile', ''] } },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$user', '$$uid'] },
+                $expr: {
+                  $or: [
+                    { $eq: ['$user', '$$uid'] },
+                    {
+                      $and: [
+                        { $ne: ['$$umobile', ''] },
+                        { $eq: ['$addressSnapshot.mobile', '$$umobile'] },
+                      ],
+                    },
+                  ],
+                },
                 paymentStatus: { $in: ['paid', 'partially_refunded', 'refunded'] },
               },
             },
@@ -88,7 +98,15 @@ const getAdminCustomerDetail = asyncHandler(async (req, res) => {
   if (!customer) throw new ApiError(404, 'Customer not found');
 
   const [orders, ratingsGiven] = await Promise.all([
-    Order.find({ user: customer._id }).sort({ createdAt: -1 }).lean(),
+    Order.find({
+      $or: [
+        { user: customer._id },
+        ...(customer.mobile ? [{ 'addressSnapshot.mobile': customer.mobile }] : []),
+      ],
+      paymentStatus: { $in: ['paid', 'partially_refunded', 'refunded'] },
+    })
+      .sort({ createdAt: -1 })
+      .lean(),
     Review.find({ user: customer._id, source: 'customer' })
       .populate('product', 'name slug')
       .sort({ createdAt: -1 })

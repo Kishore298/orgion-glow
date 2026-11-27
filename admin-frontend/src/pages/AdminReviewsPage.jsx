@@ -168,29 +168,43 @@ export default function AdminReviewsPage() {
 
   const toggleVisibility = async (rev) => {
     const next = rev.status === 'visible' ? 'hidden' : 'visible';
-    await api.patch(`/v1/admin/reviews/${rev._id}`, { status: next });
-    queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
-    toast.success(`Review ${next}`);
+    try {
+      await api.patch(`/v1/admin/reviews/${rev._id}`, { status: next });
+      queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
+      toast.success(`Review ${next}`);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
   };
 
   const toggleFeatured = async (rev) => {
-    await api.patch(`/v1/admin/reviews/${rev._id}`, { isFeatured: !rev.isFeatured });
-    queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
+    try {
+      const next = !rev.isFeatured;
+      await api.patch(`/v1/admin/reviews/${rev._id}`, { isFeatured: next });
+      queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
+      toast.success(next ? 'Review featured on homepage' : 'Review unfeatured');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
   };
 
   const handleDelete = async (rev) => {
     if (!window.confirm('Delete this review?')) return;
-    await api.delete(`/v1/admin/reviews/${rev._id}`);
-    queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
-    toast.success('Review deleted');
+    try {
+      await api.delete(`/v1/admin/reviews/${rev._id}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
+      toast.success('Review deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
   };
 
   return (
-    <div className="space-y-3.5 sm:space-y-4 lg:space-y-6">
+    <div className="space-y-3.5 sm:space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
         <div>
           <span className="label-micro">Feedback Management</span>
-          <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">Reviews</h1>
+          <h1 className="mt-0.5 font-serif text-xl sm:text-2xl font-semibold text-primary-dark">Reviews</h1>
         </div>
         <button
           type="button"
@@ -453,7 +467,7 @@ export default function AdminReviewsPage() {
 
       {/* Add / Edit Review Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-black/45 p-4 overflow-y-auto">
           <div className="admin-card relative w-full max-w-lg p-6 sm:p-7 my-8">
             <button
               type="button"

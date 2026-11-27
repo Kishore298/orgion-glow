@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Search, ShoppingBag, User, Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -8,10 +9,12 @@ import { LUXURY_EASE } from '../common/MotionPrimitives';
 
 const NAV_LINKS = [
   { to: '/shop', label: 'Shop' },
+  { to: '/offers', label: 'Offers' },
   { to: '/category/skin-care', label: 'Skincare' },
   { to: '/category/lip-care', label: 'Lip Care' },
-  { to: '/#why-us', label: 'Why Us', isHash: true },
-  { to: '/our-story', label: 'Our Story' },
+  { to: '/#why-us', label: 'Why Us', isHash: true, hashId: 'why-us' },
+  { to: '/#our-story', label: 'Our Story', isHash: true, hashId: 'our-story' },
+  { to: '/#reviews', label: 'Customer Reviews', isHash: true, hashId: 'reviews' },
 ];
 
 export default function Navbar() {
@@ -27,6 +30,21 @@ export default function Navbar() {
 
   const itemCount = items.reduce((sum, i) => sum + Number(i.qty || 1), 0);
 
+  // Lock background page scrolling while mobile drawer is open
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileOpen]);
+
+  // Close drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname, location.hash]);
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     const q = searchTerm.trim();
@@ -35,12 +53,12 @@ export default function Navbar() {
     navigate(q ? `/shop?search=${encodeURIComponent(q)}` : '/shop');
   };
 
-  const handleWhyUsClick = (e) => {
+  const handleHashClick = (e, hashId) => {
     setMobileOpen(false);
     if (location.pathname === '/') {
       e.preventDefault();
-      document.getElementById('why-us')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      window.history.replaceState(null, '', '/#why-us');
+      document.getElementById(hashId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.history.replaceState(null, '', `/#${hashId}`);
     }
   };
 
@@ -53,13 +71,13 @@ export default function Navbar() {
             type="button"
             aria-label="Open navigation menu"
             onClick={() => setMobileOpen(true)}
-            className="p-2 text-text hover:text-primary"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-text hover:text-primary"
           >
             <Menu size={22} />
           </button>
         </div>
 
-        {/* Brand Logo (larger without increasing navbar height) */}
+        {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0 py-1" aria-label="ORGION Home">
           <img
             src="/orgion-logo.png"
@@ -68,16 +86,19 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Center Nav Links */}
-        <nav className="hidden md:flex items-center gap-7 lg:gap-8" aria-label="Main navigation">
+        {/* Center Nav Links (Tablet + Desktop) */}
+        <nav
+          className="hidden md:flex items-center gap-3.5 lg:gap-6 whitespace-nowrap"
+          aria-label="Main navigation"
+        >
           {NAV_LINKS.map((link) =>
             link.isHash ? (
               <Link
                 key={link.to}
                 to={link.to}
-                onClick={handleWhyUsClick}
-                className={`relative py-1 text-sm font-medium transition-colors ${
-                  location.pathname === '/' && location.hash === '#why-us'
+                onClick={(e) => handleHashClick(e, link.hashId)}
+                className={`relative py-1 text-[13px] lg:text-sm font-medium transition-colors ${
+                  location.pathname === '/' && location.hash === `#${link.hashId}`
                     ? 'text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1.5px] after:bg-primary'
                     : 'text-text hover:text-primary'
                 }`}
@@ -89,7 +110,7 @@ export default function Navbar() {
                 key={link.to}
                 to={link.to}
                 className={({ isActive }) =>
-                  `relative py-1 text-sm font-medium transition-colors ${
+                  `relative py-1 text-[13px] lg:text-sm font-medium transition-colors ${
                     isActive
                       ? 'text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1.5px] after:bg-primary'
                       : 'text-text hover:text-primary'
@@ -103,7 +124,7 @@ export default function Navbar() {
         </nav>
 
         {/* Right Icons */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <button
             type="button"
             aria-label="Search products"
@@ -167,7 +188,7 @@ export default function Navbar() {
                 autoFocus
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search lip balms, botanical serums, rosewater..."
+                placeholder="Search soaps, night cream, lip balms..."
                 className="input-field"
               />
               <button type="submit" className="btn-primary shrink-0">
@@ -186,83 +207,90 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* Mobile Drawer */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <div className="fixed inset-0 z-50 flex md:hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/30 backdrop-blur-[1px]"
-              onClick={() => setMobileOpen(false)}
-            />
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ duration: 0.28, ease: LUXURY_EASE }}
-              className="relative z-10 flex w-72 max-w-[85vw] flex-col bg-background p-6 shadow-xl"
-            >
-              <div className="flex items-center justify-between border-b border-border pb-4">
-                <img
-                  src="/orgion-logo.png"
-                  alt="ORGION"
-                  className="h-10 w-auto object-contain"
+      {/* Portal Mobile Drawer so backdrop-filter on header never traps fixed positioning */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {mobileOpen && (
+              <div className="fixed inset-0 z-[100] flex md:hidden" role="dialog" aria-modal="true">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/45 backdrop-blur-[2px]"
+                  onClick={() => setMobileOpen(false)}
                 />
-                <button
-                  type="button"
-                  aria-label="Close menu"
-                  onClick={() => setMobileOpen(false)}
-                  className="p-1 text-text-muted hover:text-text"
+                <motion.div
+                  initial={{ x: '-100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '-100%' }}
+                  transition={{ duration: 0.26, ease: LUXURY_EASE }}
+                  className="relative z-10 flex h-full w-80 max-w-[85vw] flex-col bg-background shadow-2xl border-r border-border"
                 >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <nav className="mt-6 flex flex-col gap-4">
-                {NAV_LINKS.map((link) =>
-                  link.isHash ? (
-                    <Link
-                      key={link.to}
-                      to={link.to}
-                      onClick={handleWhyUsClick}
-                      className="text-base font-medium text-text hover:text-primary"
-                    >
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <NavLink
-                      key={link.to}
-                      to={link.to}
+                  {/* Drawer header */}
+                  <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                    <img
+                      src="/orgion-logo.png"
+                      alt="ORGION"
+                      className="h-11 w-auto object-contain"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Close menu"
                       onClick={() => setMobileOpen(false)}
-                      className={({ isActive }) =>
-                        `text-base font-medium ${isActive ? 'text-primary' : 'text-text'}`
-                      }
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-text-muted hover:bg-surface-muted hover:text-text"
                     >
-                      {link.label}
-                    </NavLink>
-                  )
-                )}
-                <Link
-                  to="/reviews"
-                  onClick={() => setMobileOpen(false)}
-                  className="text-base font-medium text-text"
-                >
-                  Customer Reviews
-                </Link>
-                <Link
-                  to={user ? '/account' : '/login'}
-                  onClick={() => setMobileOpen(false)}
-                  className="text-base font-medium text-text"
-                >
-                  {user ? 'My Account' : 'Sign In / Register'}
-                </Link>
-              </nav>
-            </motion.div>
-          </div>
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {/* Drawer links with >=44px tap targets */}
+                  <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
+                    {NAV_LINKS.map((link) =>
+                      link.isHash ? (
+                        <Link
+                          key={link.to}
+                          to={link.to}
+                          onClick={(e) => handleHashClick(e, link.hashId)}
+                          className="flex min-h-[44px] items-center rounded-xl px-3.5 text-[15px] font-medium text-text hover:bg-surface-muted hover:text-primary"
+                        >
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <NavLink
+                          key={link.to}
+                          to={link.to}
+                          onClick={() => setMobileOpen(false)}
+                          className={({ isActive }) =>
+                            `flex min-h-[44px] items-center rounded-xl px-3.5 text-[15px] font-medium transition-colors ${
+                              isActive
+                                ? 'bg-primary-soft text-primary-dark'
+                                : 'text-text hover:bg-surface-muted hover:text-primary'
+                            }`
+                          }
+                        >
+                          {link.label}
+                        </NavLink>
+                      )
+                    )}
+                  </nav>
+
+                  {/* Bottom CTA */}
+                  <div className="border-t border-border p-5 bg-surface-muted/60">
+                    <Link
+                      to={user ? '/account' : '/login'}
+                      onClick={() => setMobileOpen(false)}
+                      className="btn-primary w-full min-h-[44px] text-sm"
+                    >
+                      {user ? 'My Account' : 'Sign In / Register'}
+                    </Link>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </header>
   );
 }

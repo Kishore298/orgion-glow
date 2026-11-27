@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { INDIAN_STATES, lookupIndianPincode } from '../../lib/pincode';
 
 const addressFormSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
@@ -26,6 +27,7 @@ export default function PincodeAddressForm({
   extraControls = null,
 }) {
   const [lookingUpPin, setLookingUpPin] = useState(false);
+  const [pinLookupFailed, setPinLookupFailed] = useState(false);
 
   const {
     register,
@@ -56,23 +58,22 @@ export default function PincodeAddressForm({
     if (/^[1-9]\d{5}$/.test(pincode)) {
       let active = true;
       setLookingUpPin(true);
-      fetch(`https://api.postalpincode.in/pincode/${pincode}`)
-        .then((r) => r.json())
-        .then((data) => {
+      setPinLookupFailed(false);
+      lookupIndianPincode(pincode)
+        .then((result) => {
           if (!active) return;
-          const postOffice = data?.[0]?.PostOffice?.[0];
-          if (postOffice) {
-            const nextCity = postOffice.District || postOffice.Division || '';
-            const nextState = postOffice.State || '';
-            if (nextCity) setValue('city', nextCity, { shouldValidate: true });
-            if (nextState) setValue('state', nextState, { shouldValidate: true });
+          if (result.ok) {
+            if (result.city) setValue('city', result.city, { shouldValidate: true });
+            if (result.state) setValue('state', result.state, { shouldValidate: true });
             if (onPincodeCityStateChange) {
-              onPincodeCityStateChange({ pincode, state: nextState });
+              onPincodeCityStateChange({ pincode, state: result.state });
+            }
+          } else {
+            setPinLookupFailed(true);
+            if (onPincodeCityStateChange) {
+              onPincodeCityStateChange({ pincode, state });
             }
           }
-        })
-        .catch(() => {
-          // Graceful fallback to manual entry
         })
         .finally(() => {
           if (active) setLookingUpPin(false);
@@ -81,6 +82,7 @@ export default function PincodeAddressForm({
         active = false;
       };
     }
+    setPinLookupFailed(false);
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pincode]);
@@ -155,7 +157,19 @@ export default function PincodeAddressForm({
         </div>
         <div>
           <label className="label-micro block mb-1.5">State</label>
-          <input {...register('state')} className="input-field" placeholder="Tamil Nadu" />
+          <select {...register('state')} className="input-field">
+            <option value="">Select state</option>
+            {INDIAN_STATES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          {pinLookupFailed && !state && (
+            <p className="mt-1 text-[11px] text-text-muted">
+              Pincode lookup slow — select your state manually.
+            </p>
+          )}
           {errors.state && <p className="mt-1 text-xs text-status-danger">{errors.state.message}</p>}
         </div>
       </div>

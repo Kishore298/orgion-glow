@@ -1,13 +1,22 @@
 import { create } from 'zustand';
-import api, { setAdminToken } from '../lib/api';
+import api, {
+  clearAdminTokens,
+  registerAdminAuthFailureHandler,
+  setAdminToken,
+} from '../lib/api';
 
-export const useAdminAuthStore = create((set) => ({
+export const useAdminAuthStore = create((set, get) => ({
   user: null,
   isHydrated: false,
 
-  setSession: (user, accessToken) => {
-    if (accessToken) setAdminToken(accessToken);
+  setSession: (user, accessToken, refreshToken) => {
+    if (accessToken) setAdminToken(accessToken, refreshToken);
     set({ user, isHydrated: true });
+  },
+
+  clearSession: () => {
+    clearAdminTokens();
+    set({ user: null, isHydrated: true });
   },
 
   hydrate: async () => {
@@ -19,8 +28,13 @@ export const useAdminAuthStore = create((set) => ({
       } else {
         set({ user: null, isHydrated: true });
       }
-    } catch {
-      set({ user: null, isHydrated: true });
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403 || !get().user) {
+        set({ user: null, isHydrated: true });
+      } else {
+        set({ isHydrated: true });
+      }
     }
   },
 
@@ -35,8 +49,15 @@ export const useAdminAuthStore = create((set) => ({
     } catch {
       // ignore
     } finally {
-      setAdminToken(null);
+      clearAdminTokens();
       set({ user: null });
     }
   },
 }));
+
+registerAdminAuthFailureHandler(() => {
+  useAdminAuthStore.getState().clearSession();
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    window.location.assign('/login');
+  }
+});

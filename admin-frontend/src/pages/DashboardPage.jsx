@@ -114,12 +114,12 @@ export default function DashboardPage() {
     (needsAttention.failedNotifications?.length || 0);
 
   return (
-    <div className="space-y-4 sm:space-y-5 lg:space-y-7">
+    <div className="space-y-3.5 sm:space-y-4 lg:space-y-5">
       {/* Header + Filters */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
         <div>
           <span className="label-micro">Analytics & Overview</span>
-          <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">Dashboard</h1>
+          <h1 className="mt-0.5 font-serif text-xl sm:text-2xl font-semibold text-primary-dark">Dashboard</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -178,7 +178,7 @@ export default function DashboardPage() {
         <StatCard
           label="Orders"
           value={cards.totalOrders}
-          sub={`New today: ${cards.newOrdersToday} · Paid: ${cards.totalPaidOrders} · Pending/Failed: ${cards.failedPendingPayments}`}
+          sub={`New today: ${cards.newOrdersToday} · Paid: ${cards.totalPaidOrders}`}
           icon={ShoppingBag}
         />
         <StatCard
@@ -196,10 +196,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-5 lg:gap-6">
-        <div className="admin-card p-3.5 sm:p-5 lg:p-6">
-          <h2 className="font-serif text-lg sm:text-xl font-semibold text-text mb-3 sm:mb-4">Revenue Over Time</h2>
-          <div className="h-64">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-4 lg:gap-5">
+        <div className="admin-card p-3.5 sm:p-5">
+          <h2 className="font-serif text-base sm:text-lg font-semibold text-text mb-2.5 sm:mb-3">Revenue Over Time</h2>
+          <div className="h-60 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={charts.revenueOverTime}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ECE8E1" />
@@ -218,9 +218,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="admin-card p-3.5 sm:p-5 lg:p-6">
-          <h2 className="font-serif text-lg sm:text-xl font-semibold text-text mb-3 sm:mb-4">Orders Over Time</h2>
-          <div className="h-64">
+        <div className="admin-card p-3.5 sm:p-5">
+          <h2 className="font-serif text-base sm:text-lg font-semibold text-text mb-2.5 sm:mb-3">Orders Over Time</h2>
+          <div className="h-60 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.revenueOverTime}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ECE8E1" />
@@ -235,9 +235,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-5 lg:gap-6">
-        <div className="admin-card p-3.5 sm:p-5 lg:p-6">
-          <h2 className="font-serif text-lg sm:text-xl font-semibold text-text mb-3 sm:mb-4">Top-Selling Products</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
+        <div className="admin-card p-3.5 sm:p-5">
+          <h2 className="font-serif text-base sm:text-lg font-semibold text-text mb-2.5 sm:mb-3">Top-Selling Products</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.topSellingProducts} layout="vertical">

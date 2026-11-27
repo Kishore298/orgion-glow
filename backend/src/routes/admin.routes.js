@@ -5,6 +5,8 @@ const dashboardCtrl = require('../controllers/adminDashboard.controller');
 const catalogCtrl = require('../controllers/adminCatalog.controller');
 const ordersCtrl = require('../controllers/adminOrders.controller');
 const crCtrl = require('../controllers/adminCustomersReviews.controller');
+const siteCtrl = require('../controllers/adminSite.controller');
+const couponCtrl = require('../controllers/coupon.controller');
 
 const router = express.Router();
 
@@ -13,6 +15,15 @@ router.use(authenticate, requireRole('admin', 'staff'));
 // Dashboard & Media
 router.get('/dashboard', dashboardCtrl.getDashboardStats);
 router.post('/upload', upload.single('image'), dashboardCtrl.uploadAdminImage);
+
+// Storefront Settings, Hero Image, Announcements & Shipping Rules
+router.get('/site-settings', siteCtrl.getAdminSiteSettings);
+router.put('/site-settings/hero', siteCtrl.updateHeroImage);
+router.put('/site-settings/shipping', siteCtrl.updateShippingSettings);
+router.post('/announcements', siteCtrl.createAnnouncement);
+router.patch('/announcements/reorder', siteCtrl.reorderAnnouncements);
+router.patch('/announcements/:id', siteCtrl.updateAnnouncement);
+router.delete('/announcements/:id', siteCtrl.deleteAnnouncement);
 
 // Categories
 router.get('/categories', catalogCtrl.listAdminCategories);
@@ -51,5 +62,13 @@ router.post('/reviews', crCtrl.createWhatsappReview);
 router.post('/reviews/bulk', crCtrl.bulkReviewAction);
 router.patch('/reviews/:id', crCtrl.updateAdminReview);
 router.delete('/reviews/:id', crCtrl.deleteAdminReview);
+
+// Coupons
+router.get('/coupons', couponCtrl.listAdminCoupons);
+router.post('/coupons', couponCtrl.createAdminCoupon);
+router.put('/coupons/:id', couponCtrl.updateAdminCoupon);
+router.patch('/coupons/:id/status', couponCtrl.toggleAdminCouponStatus);
+router.delete('/coupons/:id', couponCtrl.deleteAdminCoupon);
+router.get('/coupons/:id/usages', couponCtrl.getAdminCouponUsages);
 
 module.exports = router;

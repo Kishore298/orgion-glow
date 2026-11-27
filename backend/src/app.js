@@ -21,6 +21,7 @@ const cartRoutes = require('./routes/cart.routes');
 const orderRoutes = require('./routes/order.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const siteRoutes = require('./routes/site.routes');
+const couponRoutes = require('./routes/coupon.routes');
 const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
@@ -82,8 +83,8 @@ app.get('/sitemap.xml', async (req, res) => {
     const staticPaths = [
       '/',
       '/shop',
+      '/offers',
       '/reviews',
-      '/our-story',
       '/terms-and-conditions',
       '/privacy-policy',
       '/shipping-returns',
@@ -114,6 +115,7 @@ for (const prefix of ['/api/v1', '/v1']) {
   app.use(`${prefix}/cart`, cartRoutes);
   app.use(`${prefix}/orders`, orderRoutes);
   app.use(`${prefix}/payments`, paymentRoutes);
+  app.use(`${prefix}/coupons`, couponRoutes);
   app.use(prefix, siteRoutes);
   app.use(`${prefix}/admin`, adminRoutes);
 }

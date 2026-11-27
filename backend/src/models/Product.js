@@ -31,6 +31,7 @@ const productSchema = new mongoose.Schema(
     tags: { type: [String], default: [] },
     isBestseller: { type: Boolean, default: false, index: true },
     isFeatured: { type: Boolean, default: false, index: true },
+    isOffer: { type: Boolean, default: false, index: true },
     relatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     inStock: { type: Boolean, default: true, index: true },
     status: {

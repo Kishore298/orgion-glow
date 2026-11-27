@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { getErrorMessage } from '../lib/api';
 import { useAdminAuthStore } from '../stores/adminAuthStore';
@@ -12,6 +13,7 @@ export default function AdminLoginPage() {
 
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unlockInputs, setUnlockInputs] = useState(false);
 
@@ -26,13 +28,13 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       const res = await api.post('/v1/auth/login', { mobile, password });
-      const { user: loggedInUser, accessToken } = res.data.data;
+      const { user: loggedInUser, accessToken, refreshToken } = res.data.data;
       if (!['admin', 'staff'].includes(loggedInUser.role)) {
         toast.error('Access restricted to ORGION admin and staff accounts');
         setLoading(false);
         return;
       }
-      setSession(loggedInUser, accessToken);
+      setSession(loggedInUser, accessToken, refreshToken);
       toast.success(`Signed in as ${loggedInUser.name}`);
       navigate('/', { replace: true });
     } catch (err) {
@@ -75,18 +77,29 @@ export default function AdminLoginPage() {
 
           <div>
             <label className="label-micro block mb-1.5">Password</label>
-            <input
-              required
-              type="password"
-              name="admin_password_input"
-              autoComplete="new-password"
-              readOnly={!unlockInputs}
-              onFocus={() => setUnlockInputs(true)}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className="input-field"
-            />
+            <div className="relative">
+              <input
+                required
+                type={showPassword ? 'text' : 'password'}
+                name="admin_password_input"
+                autoComplete="new-password"
+                readOnly={!unlockInputs}
+                onFocus={() => setUnlockInputs(true)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="input-field pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-text-muted transition-colors hover:text-primary focus:outline-none"
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full">

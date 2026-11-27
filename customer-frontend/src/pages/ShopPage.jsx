@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
-import { ArrowRight, SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import api from '../lib/api';
 import { formatINR } from '../lib/format';
 import ProductCard from '../components/common/ProductCard';
 import { ProductCardSkeleton } from '../components/common/Skeletons';
+import BackButton from '../components/common/BackButton';
 import { LUXURY_EASE } from '../components/common/MotionPrimitives';
 
 export default function ShopPage() {
@@ -38,7 +39,7 @@ export default function ShopPage() {
 
   const isShopAllGrouped = !categorySlugParam && selectedCats.length === 0;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: [
       'products',
       {
@@ -63,6 +64,8 @@ export default function ShopPage() {
       const res = await api.get(`/v1/products?${params.toString()}`);
       return res.data?.data;
     },
+    refetchOnMount: 'always',
+    retry: 2,
   });
 
   const items = data?.items || [];
@@ -142,16 +145,17 @@ export default function ShopPage() {
         />
       </Helmet>
 
-      <div className="mx-auto max-w-7xl px-6 pt-5 pb-14">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 sm:pt-4 pb-8 sm:pb-10">
+        <BackButton fallbackTo="/" label="Back" className="mb-1.5 sm:mb-2" />
         {/* Top Heading + Side-aligned Filter Bar */}
-        <div className="border-b border-border pb-7">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="border-b border-border pb-3.5 sm:pb-4">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 sm:gap-4">
             <div>
               <span className="label-micro">ORGION Collection</span>
-              <h1 className="mt-1.5 font-serif text-4xl sm:text-5xl font-semibold text-primary-dark">
+              <h1 className="mt-0.5 font-serif text-2xl sm:text-3xl lg:text-4xl font-semibold text-primary-dark">
                 {pageTitle}
               </h1>
-              <p className="mt-2.5 max-w-xl text-sm text-text-muted">
+              <p className="mt-1 max-w-xl text-xs sm:text-sm text-text-muted">
                 {activeCategory?.description ||
                   'Handmade small-batch skincare and lip care crafted with carefully selected ingredients.'}
               </p>
@@ -166,9 +170,8 @@ export default function ShopPage() {
               <button
                 type="button"
                 onClick={() => setFiltersOpen((o) => !o)}
-                className={`btn-ghost min-h-[38px] px-3.5 text-xs ${
-                  filtersOpen || activeFilterCount > 0 ? 'border-primary text-primary' : ''
-                }`}
+                className={`btn-ghost min-h-[38px] px-3.5 text-xs ${filtersOpen || activeFilterCount > 0 ? 'border-primary text-primary' : ''
+                  }`}
               >
                 <SlidersHorizontal size={14} />
                 Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
@@ -221,11 +224,10 @@ export default function ShopPage() {
                               key={cat._id}
                               type="button"
                               onClick={() => toggleCategoryFilter(cat.slug)}
-                              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                                active
-                                  ? 'bg-primary text-white'
-                                  : 'border border-border bg-surface-muted text-text hover:border-primary'
-                              }`}
+                              className={`rounded-full px-3 py-1 text-xs font-medium transition ${active
+                                ? 'bg-primary text-white'
+                                : 'border border-border bg-surface-muted text-text hover:border-primary'
+                                }`}
                             >
                               {cat.name}
                             </button>
@@ -283,51 +285,51 @@ export default function ShopPage() {
         </div>
 
         {/* Products Display */}
-        <div className="mt-10">
-          {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="mt-4 sm:mt-5">
+          {isLoading || (isFetching && items.length === 0) ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
               {[0, 1, 2, 3].map((i) => (
                 <ProductCardSkeleton key={i} />
               ))}
             </div>
+          ) : isError && items.length === 0 ? (
+            <div className="luxury-card py-12 px-6 text-center">
+              <p className="font-serif text-xl sm:text-2xl text-text">Could not load products right now</p>
+              <p className="mt-1.5 text-xs sm:text-sm text-text-muted">
+                Please check your connection and try again.
+              </p>
+              <button type="button" onClick={() => refetch()} className="btn-primary mt-5">
+                Retry
+              </button>
+            </div>
           ) : items.length === 0 ? (
-            <div className="luxury-card py-16 px-6 text-center">
-              <p className="font-serif text-2xl text-text">No formulations match your filters</p>
-              <p className="mt-2 text-sm text-text-muted">
+            <div className="luxury-card py-12 px-6 text-center">
+              <p className="font-serif text-xl sm:text-2xl text-text">No formulations match your filters</p>
+              <p className="mt-1.5 text-xs sm:text-sm text-text-muted">
                 Try adjusting your price range or clearing active filters.
               </p>
               <button
                 type="button"
                 onClick={() => setSearchParams({})}
-                className="btn-primary mt-6"
+                className="btn-primary mt-5"
               >
                 Reset Filters
               </button>
             </div>
           ) : isShopAllGrouped ? (
-            <div className="space-y-14">
+            <div className="space-y-6 sm:space-y-8">
               {groupedSections.map(({ category: cat, products }) => (
                 <section key={cat._id}>
-                  <div className="flex items-end justify-between gap-4 mb-5 pb-2 border-b border-border/70">
-                    <div>
-                      <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-primary-dark">
-                        {cat.name}
-                      </h2>
-                      <p className="text-xs text-text-muted mt-0.5">
-                        {products.length} product{products.length === 1 ? '' : 's'}
-                      </p>
-                    </div>
-                    {cat.slug && (
-                      <Link
-                        to={`/category/${cat.slug}`}
-                        className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
-                      >
-                        View category <ArrowRight size={13} />
-                      </Link>
-                    )}
+                  <div className="mb-3 sm:mb-4 pb-1.5 border-b border-border/70">
+                    <h2 className="font-serif text-xl sm:text-2xl font-semibold text-primary-dark">
+                      {cat.name}
+                    </h2>
+                    <p className="text-[11px] sm:text-xs text-text-muted mt-0.5">
+                      {products.length} product{products.length === 1 ? '' : 's'}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
                     {products.map((prod) => (
                       <ProductCard key={prod._id} product={prod} />
                     ))}
@@ -337,7 +339,7 @@ export default function ShopPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
                 {items.map((prod) => (
                   <ProductCard key={prod._id} product={prod} />
                 ))}
@@ -355,11 +357,10 @@ export default function ShopPage() {
                         setSearchParams(next);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className={`h-10 w-10 rounded-[10px] text-sm font-medium transition ${
-                        p === page
-                          ? 'bg-primary text-white'
-                          : 'border border-border bg-surface text-text hover:bg-surface-muted'
-                      }`}
+                      className={`h-10 w-10 rounded-[10px] text-sm font-medium transition ${p === page
+                        ? 'bg-primary text-white'
+                        : 'border border-border bg-surface text-text hover:bg-surface-muted'
+                        }`}
                     >
                       {p}
                     </button>

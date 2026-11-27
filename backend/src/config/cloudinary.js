@@ -29,7 +29,9 @@ async function uploadImageBuffer(buffer, { folder = 'orgion', originalname = 'im
         {
           folder,
           resource_type: 'image',
-          transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+          transformation: [
+            { width: 1600, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' },
+          ],
         },
         (err, result) => {
           if (err) return reject(err);
