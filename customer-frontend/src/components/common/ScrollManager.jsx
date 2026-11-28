@@ -65,6 +65,25 @@ export default function ScrollManager() {
   useEffect(() => {
     const key = location.key || location.pathname + location.search;
 
+    if (navigationType === 'POP') {
+      const map = readScrollMap();
+      const savedY = map[key];
+      if (typeof savedY === 'number') {
+        let attempts = 0;
+        const tryRestoreScroll = () => {
+          const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          if (maxScroll >= savedY || attempts >= 8) {
+            window.scrollTo({ top: savedY, left: 0, behavior: 'smooth' });
+            return;
+          }
+          attempts += 1;
+          setTimeout(tryRestoreScroll, 60);
+        };
+        requestAnimationFrame(tryRestoreScroll);
+        return;
+      }
+    }
+
     if (location.hash) {
       const targetId = location.hash.replace('#', '');
       let attempts = 0;
@@ -81,17 +100,6 @@ export default function ScrollManager() {
       };
       requestAnimationFrame(tryScrollToHash);
       return;
-    }
-
-    if (navigationType === 'POP') {
-      const map = readScrollMap();
-      const savedY = map[key];
-      if (typeof savedY === 'number') {
-        requestAnimationFrame(() => {
-          window.scrollTo({ top: savedY, left: 0, behavior: 'smooth' });
-        });
-        return;
-      }
     }
 
     // Standard route change (PUSH / REPLACE) -> smooth scroll to top

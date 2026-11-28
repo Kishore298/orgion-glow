@@ -58,7 +58,7 @@ export default function Navbar() {
     if (location.pathname === '/') {
       e.preventDefault();
       document.getElementById(hashId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      window.history.replaceState(null, '', `/#${hashId}`);
+      window.history.replaceState(window.history.state, '', `/#${hashId}`);
     }
   };
 

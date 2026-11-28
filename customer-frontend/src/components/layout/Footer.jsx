@@ -14,7 +14,7 @@ export default function Footer() {
     if (location.pathname === '/') {
       e.preventDefault();
       document.getElementById('our-story')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      window.history.replaceState(null, '', '/#our-story');
+      window.history.replaceState(window.history.state, '', '/#our-story');
     }
   };
 

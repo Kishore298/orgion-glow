@@ -1,0 +1,19 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Serve index.html directly without looping
+  RewriteRule ^index\.html$ - [L]
+
+  # Serve existing files and directories as-is (assets, images, manifest, service worker, etc.)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  # Fallback all other SPA routes to index.html so refreshing preserves the current route
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "^(index\.html|firebase-messaging-sw\.js)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
