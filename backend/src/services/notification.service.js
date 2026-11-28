@@ -10,6 +10,7 @@ const {
   orderStatusChangedTemplate,
   trackingUpdatedTemplate,
   paymentFailedTemplate,
+  ratingReminderTemplate,
 } = require('../templates/email/orderTemplates');
 
 let transporter = null;
@@ -33,7 +34,8 @@ function getMailTransporter() {
 }
 
 function buildEmailContent(event, payload) {
-  const { order, customerName, newStatus, alsoShipped, refundAmount } = payload;
+  const { order, customerName, newStatus, alsoShipped, refundAmount, unratedItems, weekNumber } =
+    payload;
   switch (event) {
     case 'ORDER_CONFIRMED':
       return orderConfirmedTemplate({ order, customerName });
@@ -43,6 +45,8 @@ function buildEmailContent(event, payload) {
       return trackingUpdatedTemplate({ order, customerName, alsoShipped });
     case 'PAYMENT_FAILED':
       return paymentFailedTemplate({ order, customerName });
+    case 'RATING_REMINDER':
+      return ratingReminderTemplate({ order, customerName, unratedItems, weekNumber });
     default:
       throw new Error(`Unsupported notification event: ${event}`);
   }
@@ -334,6 +338,8 @@ async function notifyNow(event, payload, deps = {}) {
       newStatus: payload.newStatus,
       alsoShipped: payload.alsoShipped,
       refundAmount: payload.refundAmount,
+      unratedItems: payload.unratedItems,
+      weekNumber: payload.weekNumber,
     },
   });
 
@@ -424,6 +430,8 @@ async function resendNotificationLog(logId) {
     newStatus: log.payload?.newStatus,
     alsoShipped: log.payload?.alsoShipped,
     refundAmount: log.payload?.refundAmount,
+    unratedItems: log.payload?.unratedItems,
+    weekNumber: log.payload?.weekNumber,
   };
 
   if (log.channel === 'email') {

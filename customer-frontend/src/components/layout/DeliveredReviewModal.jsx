@@ -86,7 +86,10 @@ export default function DeliveredReviewModal() {
 
   const handleRateNow = () => {
     setOpen(false);
-    navigate(`/account/orders/${pendingOrder.orderNumber}#rate`);
+    const ref = pendingOrder.orderNumber || pendingOrder.orderId;
+    navigate(`/account/orders/${ref}#rate`, {
+      state: { scrollToRate: Date.now() },
+    });
   };
 
   return (

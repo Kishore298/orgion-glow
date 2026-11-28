@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
-import { Package, Truck } from 'lucide-react';
+import { Package, Star, Truck } from 'lucide-react';
 import api from '../lib/api';
 import { formatDate, formatINR, handleImageError, isFallbackLogo, resolveImageUrl } from '../lib/format';
 import { PageSkeleton } from '../components/common/Skeletons';
+import BackButton from '../components/common/BackButton';
+import StarRating from '../components/common/StarRating';
 
 const STATUS_STYLE = {
   confirmed: 'bg-primary-soft text-primary-dark',
@@ -19,6 +21,7 @@ const STATUS_STYLE = {
 };
 
 export default function OrdersPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
@@ -41,6 +44,7 @@ export default function OrdersPage() {
       </Helmet>
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-3 sm:pt-4 pb-10">
+        <BackButton fallbackTo="/account" label="Back" className="mb-1.5 sm:mb-2" />
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
             <span className="label-micro">Order History</span>
@@ -111,6 +115,61 @@ export default function OrdersPage() {
                     {formatINR(order.total)}
                   </span>
                 </div>
+
+                {order.status === 'delivered' && (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5 border-t border-border pt-2.5">
+                    {order.ratingSummary?.allRated ? (
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-medium text-primary-dark">Your Rating:</span>
+                        {order.ratingSummary.ratings?.length === 1 ? (
+                          <StarRating
+                            rating={order.ratingSummary.ratings[0].rating}
+                            size={14}
+                            showValue
+                          />
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <StarRating
+                              rating={order.ratingSummary.avgRating}
+                              size={14}
+                              showValue
+                            />
+                            <span className="text-[11px] text-text-muted">
+                              ({order.ratingSummary.ratedCount}/{order.ratingSummary.totalItems} items rated)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
+                            <Star size={11} className="text-gold" />
+                            {order.ratingSummary?.ratedCount > 0
+                              ? `${order.ratingSummary.ratedCount}/${order.ratingSummary.totalItems} Rated`
+                              : 'Not Rated Yet'}
+                          </span>
+                          {order.ratingSummary?.ratedCount > 0 && (
+                            <StarRating rating={order.ratingSummary.avgRating} size={13} />
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(`/account/orders/${order.orderNumber}#rate`, {
+                              state: { scrollToRate: Date.now() },
+                            });
+                          }}
+                          className="btn-primary min-h-[30px] px-3 py-1 text-[11px]"
+                        >
+                          Rate Now
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </Link>
             ))}
           </div>

@@ -137,6 +137,7 @@ export default function AddReviewModal({
       setComment('');
       await queryClient.invalidateQueries({ queryKey: ['reviewable-items', user?._id] });
       await queryClient.invalidateQueries({ queryKey: ['order-detail'] });
+      await queryClient.invalidateQueries({ queryKey: ['my-orders'] });
       onSubmitted?.();
     } catch (err) {
       if (!err?.isAuthRedirect) {

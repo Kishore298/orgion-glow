@@ -121,6 +121,11 @@ export default function ProductCard({ product }) {
             </span>
           ) : null}
         </div>
+        {product.category?.name && (
+          <span className="pointer-events-none absolute bottom-2 left-2 sm:bottom-2.5 sm:left-2.5 max-w-[calc(100%-1rem)] truncate rounded-full border border-border/80 bg-surface/90 px-2 py-0.5 text-[9px] sm:text-[10px] font-medium uppercase tracking-wider text-primary-dark shadow-sm backdrop-blur-[2px]">
+            {product.category.name}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-2 sm:p-3">

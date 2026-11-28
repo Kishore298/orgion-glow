@@ -723,4 +723,95 @@ describe('ORGION Core Business Rules & Integrations', () => {
       assert.equal(couponState.disabledByLimit, false);
     });
   });
+
+  describe('9. Weekly Rating Reminder Emails (Every 7th Day Until Rated)', () => {
+    it('sends weekly reminder starting day 7 and stops once all items are rated', async () => {
+      const { runWeeklyRatingReminders } = require('../src/jobs/cron');
+      const deliveredAt = new Date('2026-11-01T10:00:00Z');
+      const sentCalls = [];
+      const seenDedupeKeys = new Set();
+
+      const sampleOrder = {
+        _id: 'ord_weekly_1',
+        orderNumber: 'ORGION-26-00099',
+        status: 'delivered',
+        deliveredAt,
+        user: { _id: 'u_99', name: 'Kavya', email: 'kavya@example.com', isBlocked: false },
+        items: [{ product: 'p_soap', name: 'GlowX Soap' }],
+      };
+
+      let ratedProducts = [];
+      const FakeOrder = {
+        find: () => ({
+          populate: () => ({
+            limit: () => ({
+              lean: async () => [sampleOrder],
+            }),
+          }),
+        }),
+      };
+      const FakeReview = {
+        find: () => ({
+          select: () => ({
+            lean: async () => ratedProducts.map((pid) => ({ order: 'ord_weekly_1', product: pid })),
+          }),
+        }),
+      };
+      const fakeNotifyNow = async (event, payload) => {
+        if (seenDedupeKeys.has(payload.emailDedupeKey)) {
+          return { email: { deduped: true } };
+        }
+        seenDedupeKeys.add(payload.emailDedupeKey);
+        sentCalls.push({ event, weekNumber: payload.weekNumber, unrated: payload.unratedItems.length });
+        return { email: { ok: true } };
+      };
+
+      // Day 6: < 7 days -> no reminder
+      const day6 = await runWeeklyRatingReminders({
+        Order: FakeOrder,
+        Review: FakeReview,
+        notifyNow: fakeNotifyNow,
+        now: new Date('2026-11-07T09:59:59Z'),
+      });
+      assert.equal(day6.sent, 0);
+
+      // Day 7: week 1 reminder sent once, repeated check deduped
+      const day7 = await runWeeklyRatingReminders({
+        Order: FakeOrder,
+        Review: FakeReview,
+        notifyNow: fakeNotifyNow,
+        now: new Date('2026-11-08T10:00:00Z'),
+      });
+      const day7Repeat = await runWeeklyRatingReminders({
+        Order: FakeOrder,
+        Review: FakeReview,
+        notifyNow: fakeNotifyNow,
+        now: new Date('2026-11-09T10:00:00Z'),
+      });
+      assert.equal(day7.sent, 1);
+      assert.equal(day7Repeat.sent, 0);
+      assert.equal(sentCalls[0].weekNumber, 1);
+
+      // Day 14: week 2 reminder sent because still unrated
+      const day14 = await runWeeklyRatingReminders({
+        Order: FakeOrder,
+        Review: FakeReview,
+        notifyNow: fakeNotifyNow,
+        now: new Date('2026-11-15T10:00:00Z'),
+      });
+      assert.equal(day14.sent, 1);
+      assert.equal(sentCalls[1].weekNumber, 2);
+
+      // Customer rates product -> Day 21 sends nothing
+      ratedProducts = ['p_soap'];
+      const day21 = await runWeeklyRatingReminders({
+        Order: FakeOrder,
+        Review: FakeReview,
+        notifyNow: fakeNotifyNow,
+        now: new Date('2026-11-22T10:00:00Z'),
+      });
+      assert.equal(day21.sent, 0);
+      assert.equal(sentCalls.length, 2);
+    });
+  });
 });

@@ -271,7 +271,7 @@ const getMyOrders = asyncHandler(async (req, res) => {
     user: req.user._id,
     paymentStatus: { $in: ['paid', 'partially_refunded', 'refunded'] },
   };
-  const [items, total] = await Promise.all([
+  const [orders, total] = await Promise.all([
     Order.find(filter)
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
@@ -279,6 +279,65 @@ const getMyOrders = asyncHandler(async (req, res) => {
       .lean(),
     Order.countDocuments(filter),
   ]);
+
+  const deliveredOrderIds = orders
+    .filter((o) => o.status === 'delivered')
+    .map((o) => o._id);
+
+  let reviewsByOrder = new Map();
+  if (deliveredOrderIds.length > 0) {
+    const orderReviews = await Review.find({
+      order: { $in: deliveredOrderIds },
+      source: 'customer',
+    })
+      .select('order product rating status')
+      .lean();
+
+    for (const r of orderReviews) {
+      const key = String(r.order);
+      if (!reviewsByOrder.has(key)) reviewsByOrder.set(key, new Map());
+      reviewsByOrder.get(key).set(String(r.product), r);
+    }
+  }
+
+  const items = orders.map((order) => {
+    if (order.status !== 'delivered') return order;
+
+    const orderItems = order.items || [];
+    const prodReviewMap = reviewsByOrder.get(String(order._id)) || new Map();
+    const ratings = [];
+    for (const item of orderItems) {
+      const rev = prodReviewMap.get(String(item.product));
+      if (rev) {
+        ratings.push({
+          productId: item.product,
+          name: item.name,
+          rating: rev.rating,
+          status: rev.status,
+        });
+      }
+    }
+
+    const totalItems = orderItems.length;
+    const ratedCount = ratings.length;
+    const allRated = totalItems > 0 && ratedCount >= totalItems;
+    const avgRating =
+      ratedCount > 0
+        ? Math.round((ratings.reduce((sum, r) => sum + Number(r.rating || 0), 0) / ratedCount) * 10) /
+          10
+        : 0;
+
+    return {
+      ...order,
+      ratingSummary: {
+        totalItems,
+        ratedCount,
+        allRated,
+        avgRating,
+        ratings,
+      },
+    };
+  });
 
   return sendSuccess(res, {
     items,

@@ -19,7 +19,7 @@ export function showAddedToCartToast({ product, qty = 1 }) {
         className={`pointer-events-auto flex w-[min(92vw,370px)] items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-lg transition-all duration-300 ease-out ${
           t.visible
             ? 'translate-y-0 scale-100 opacity-100'
-            : '-translate-y-2 scale-95 opacity-0'
+            : 'translate-y-2 scale-95 opacity-0'
         }`}
         role="status"
       >
@@ -64,8 +64,8 @@ export function showAddedToCartToast({ product, qty = 1 }) {
       </div>
     ),
     {
-      duration: 3500,
-      position: 'top-right',
+      duration: 2000,
+      position: 'bottom-center',
     }
   );
 }

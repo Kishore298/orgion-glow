@@ -269,9 +269,65 @@ function paymentFailedTemplate({ order, customerName }) {
   };
 }
 
+function ratingReminderTemplate({ order, customerName, unratedItems = [], weekNumber = 1 }) {
+  const orderRef = order.orderNumber || order._id;
+  const rateUrl = `${siteConfig.clientCustomerUrl}/account/orders/${orderRef}#rate`;
+  const itemsToShow = unratedItems.length > 0 ? unratedItems : order.items || [];
+  const itemListHtml = itemsToShow
+    .map(
+      (item) => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #ECE8E1;font-size:14px;color:#1C1C1C;">
+          <span style="color:#C9A66B;margin-right:6px;">&#9733;</span>${escapeHtml(item.name)}
+        </td>
+      </tr>`
+    )
+    .join('');
+
+  const subject = `Share your review for ORGION order ${order.orderNumber}`;
+  const heading = 'How Are Your ORGION Formulations?';
+  const bodyHtml = `
+    <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1C1C1C;">
+      Namaste ${escapeHtml(customerName || order.addressSnapshot?.fullName || 'Friend')},
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#6B6B66;">
+      We hope you have been enjoying your products from order <strong>${escapeHtml(order.orderNumber)}</strong>. If you have a moment, we would love to hear how they felt for your skin and lips!
+    </p>
+    <div style="background-color:#F7F5F2;border:1px solid #ECE8E1;border-radius:12px;padding:16px 20px;margin:18px 0;">
+      <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#6B6B66;font-weight:600;">Waiting for Your Rating</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        ${itemListHtml}
+      </table>
+    </div>
+    <p style="margin:0;font-size:12px;color:#6B6B66;">
+      Once you submit your rating on the order page, we will stop sending these weekly reminders.
+    </p>
+  `;
+
+  const text = [
+    `Namaste ${customerName || order.addressSnapshot?.fullName || 'Friend'},`,
+    `We'd love your rating for your ORGION order ${order.orderNumber} (week ${weekNumber} reminder):`,
+    ...itemsToShow.map((i) => `- ${i.name}`),
+    `Rate now: ${rateUrl}`,
+  ].join('\n');
+
+  return {
+    subject,
+    html: renderEmailLayout({
+      preheader: `Tell us what you think of your ORGION order ${order.orderNumber}.`,
+      heading,
+      bodyHtml,
+      ctaLabel: 'Rate Your Products',
+      ctaUrl: rateUrl,
+    }),
+    text,
+  };
+}
+
 module.exports = {
   orderConfirmedTemplate,
   orderStatusChangedTemplate,
   trackingUpdatedTemplate,
   paymentFailedTemplate,
+  ratingReminderTemplate,
 };

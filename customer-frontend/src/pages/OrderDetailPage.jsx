@@ -148,12 +148,14 @@ export default function OrderDetailPage() {
   });
 
   useEffect(() => {
-    if (location.hash === '#rate' && data?.order?.status === 'delivered') {
-      setTimeout(() => {
-        document.getElementById('rate')?.scrollIntoView({ behavior: 'smooth' });
-      }, 150);
+    if (!isLoading && (location.hash === '#rate' || location.state?.scrollToRate) && data?.order?.status === 'delivered') {
+      const timer = setTimeout(() => {
+        document.getElementById('rate')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 180);
+      return () => clearTimeout(timer);
     }
-  }, [location.hash, data?.order?.status]);
+    return undefined;
+  }, [isLoading, location.hash, location.state?.scrollToRate, data?.order?.status]);
 
   if (isLoading) return <PageSkeleton />;
   const order = data?.order;
@@ -411,9 +413,10 @@ export default function OrderDetailPage() {
                   orderRef={order.orderNumber}
                   item={item}
                   existingRating={ratedByProduct[String(item.product)]}
-                  onSubmitted={() =>
-                    queryClient.invalidateQueries({ queryKey: ['order-detail', id] })
-                  }
+                  onSubmitted={() => {
+                    queryClient.invalidateQueries({ queryKey: ['order-detail', id] });
+                    queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+                  }}
                 />
               ))}
             </div>
