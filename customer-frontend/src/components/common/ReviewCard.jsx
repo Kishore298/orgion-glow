@@ -65,11 +65,15 @@ export default function ReviewCard({ review, onImageClick, showDate = false }) {
           {displayImg && (
             <button
               type="button"
-              disabled={!review.screenshot || !onImageClick}
-              onClick={() => review.screenshot && onImageClick?.(resolveImageUrl(review.screenshot, 1200))}
-              aria-label={review.screenshot ? 'View review image' : review.product?.name || 'Product'}
+              disabled={!onImageClick || usingFallback}
+              onClick={() => {
+                if (onImageClick && !usingFallback) {
+                  onImageClick(resolveImageUrl(displayImg, 1200));
+                }
+              }}
+              aria-label={review.screenshot ? 'View review image' : `View ${review.product?.name || 'product'} image`}
               className={`h-14 w-14 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted ${
-                review.screenshot && onImageClick ? 'cursor-zoom-in hover:opacity-90' : 'cursor-default'
+                onImageClick && !usingFallback ? 'cursor-zoom-in hover:opacity-90' : 'cursor-default'
               }`}
             >
               <img
@@ -93,14 +97,14 @@ export default function ReviewCard({ review, onImageClick, showDate = false }) {
       </div>
 
       {/* Compact Footer */}
-      <div className="mt-3 pt-2.5 border-t border-border flex items-center justify-between gap-2 text-[11px]">
-        <div className="min-w-0 truncate">
-          <span className="font-semibold text-text">{review.reviewerName}</span>
+      <div className="mt-3 pt-2.5 border-t border-border flex items-start justify-between gap-3 text-[11px]">
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-text leading-snug break-words">{review.reviewerName}</div>
           {review.reviewerLocation && (
-            <span className="text-text-muted"> · {review.reviewerLocation}</span>
+            <div className="text-text-muted leading-snug break-words">{review.reviewerLocation}</div>
           )}
           {showDate && review.reviewDate && (
-            <span className="block text-[10px] text-text-muted">{formatDate(review.reviewDate)}</span>
+            <div className="mt-0.5 text-[10px] text-text-muted">{formatDate(review.reviewDate)}</div>
           )}
         </div>
 
@@ -108,7 +112,7 @@ export default function ReviewCard({ review, onImageClick, showDate = false }) {
           <Link
             to={`/product/${review.product.slug}`}
             title={review.product.name}
-            className="shrink-0 max-w-[140px] sm:max-w-[175px] truncate font-medium text-primary hover:underline text-right"
+            className="shrink-0 max-w-[140px] sm:max-w-[175px] line-clamp-2 leading-snug font-medium text-primary hover:underline text-right break-words"
           >
             {review.product.name}
           </Link>

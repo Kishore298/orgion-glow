@@ -468,6 +468,7 @@ describe('ORGION Core Business Rules & Integrations', () => {
       );
       assert.equal(created.reviewerName, 'Ananya S.');
       assert.equal(created.isVerifiedPurchase, true);
+      assert.equal(created.status, 'pending');
       assert.equal(recalcCalledWith, 'p1');
 
       // Reject second rating for same (order, product) with 409

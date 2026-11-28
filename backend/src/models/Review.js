@@ -26,7 +26,7 @@ const reviewSchema = new mongoose.Schema(
     isVerifiedPurchase: { type: Boolean, default: false },
     status: {
       type: String,
-      enum: ['visible', 'hidden'],
+      enum: ['pending', 'visible', 'hidden'],
       default: 'visible',
       index: true,
     },

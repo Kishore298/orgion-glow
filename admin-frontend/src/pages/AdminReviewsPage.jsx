@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BadgeCheck,
+  CheckCircle2,
+  Clock,
   Eye,
   EyeOff,
   MessageCircle,
@@ -43,6 +45,7 @@ export default function AdminReviewsPage() {
     screenshot: '',
     reviewDate: new Date().toISOString().slice(0, 10),
     isFeatured: false,
+    status: 'visible',
     adminReply: '',
   });
   const [uploading, setUploading] = useState(false);
@@ -85,6 +88,7 @@ export default function AdminReviewsPage() {
 
   const reviews = data?.items || [];
   const totalPages = data?.totalPages || 1;
+  const pendingCount = data?.pendingCount || 0;
 
   const resetForm = (keepProduct = false) => {
     setEditingReview(null);
@@ -97,6 +101,7 @@ export default function AdminReviewsPage() {
       screenshot: '',
       reviewDate: new Date().toISOString().slice(0, 10),
       isFeatured: false,
+      status: 'visible',
       adminReply: '',
     }));
   };
@@ -128,7 +133,7 @@ export default function AdminReviewsPage() {
           editingReview.source === 'customer'
             ? {
                 adminReply: form.adminReply,
-                isFeatured: form.isFeatured,
+                status: form.status,
               }
             : form;
         await api.patch(`/v1/admin/reviews/${editingReview._id}`, payload);
@@ -166,12 +171,22 @@ export default function AdminReviewsPage() {
     }
   };
 
+  const approveReview = async (rev) => {
+    try {
+      await api.patch(`/v1/admin/reviews/${rev._id}`, { status: 'visible' });
+      queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
+      toast.success('Review approved & published to product page');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   const toggleVisibility = async (rev) => {
     const next = rev.status === 'visible' ? 'hidden' : 'visible';
     try {
       await api.patch(`/v1/admin/reviews/${rev._id}`, { status: next });
       queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
-      toast.success(`Review ${next}`);
+      toast.success(next === 'visible' ? 'Review approved & visible' : 'Review hidden');
     } catch (err) {
       toast.error(getErrorMessage(err));
     }
@@ -218,6 +233,27 @@ export default function AdminReviewsPage() {
         </button>
       </div>
 
+      {pendingCount > 0 && filters.status !== 'pending' && (
+        <div className="admin-card px-4 py-3 flex flex-wrap items-center justify-between gap-3 bg-amber-50 border-amber-200">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-amber-900">
+            <Clock size={16} className="shrink-0 text-amber-700" />
+            <span>
+              <strong>{pendingCount}</strong> customer product review{pendingCount === 1 ? '' : 's'} awaiting approval.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFilters((f) => ({ ...f, status: 'pending' }));
+              setPage(1);
+            }}
+            className="btn-primary min-h-[32px] px-3 text-xs"
+          >
+            Review Pending
+          </button>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="admin-card p-2.5 sm:p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
@@ -255,11 +291,15 @@ export default function AdminReviewsPage() {
         </select>
         <select
           value={filters.status}
-          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          onChange={(e) => {
+            setFilters({ ...filters, status: e.target.value });
+            setPage(1);
+          }}
           className="input-field"
         >
-          <option value="">All Visibility</option>
-          <option value="visible">Visible</option>
+          <option value="">All Statuses</option>
+          <option value="pending">Pending Approval</option>
+          <option value="visible">Approved / Visible</option>
           <option value="hidden">Hidden</option>
         </select>
         <select
@@ -276,14 +316,14 @@ export default function AdminReviewsPage() {
       {selectedIds.length > 0 && (
         <div className="admin-card px-4 py-3 flex flex-wrap items-center gap-3 text-xs bg-primary-soft/40">
           <span className="font-semibold">{selectedIds.length} selected</span>
-          <button type="button" onClick={() => handleBulk('show')} className="btn-ghost min-h-[30px] px-3 text-xs">
-            Show
+          <button type="button" onClick={() => handleBulk('approve')} className="btn-ghost min-h-[30px] px-3 text-xs">
+            Approve
           </button>
           <button type="button" onClick={() => handleBulk('hide')} className="btn-ghost min-h-[30px] px-3 text-xs">
             Hide
           </button>
           <button type="button" onClick={() => handleBulk('feature')} className="btn-ghost min-h-[30px] px-3 text-xs">
-            Feature
+            Feature (WhatsApp)
           </button>
           <button
             type="button"
@@ -384,26 +424,49 @@ export default function AdminReviewsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={rev.isFeatured}
-                        onChange={() => toggleFeatured(rev)}
-                        aria-label="Toggle featured on home"
-                      />
+                      {rev.source === 'whatsapp' ? (
+                        <input
+                          type="checkbox"
+                          checked={rev.isFeatured}
+                          onChange={() => toggleFeatured(rev)}
+                          aria-label="Toggle featured on home"
+                        />
+                      ) : (
+                        <span className="text-[11px] text-text-muted" title="Customer reviews publish to product pages only">
+                          Product only
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleVisibility(rev)}
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                          rev.status === 'visible'
-                            ? 'bg-primary-soft text-status-success'
-                            : 'bg-surface-muted text-text-muted'
-                        }`}
-                      >
-                        {rev.status === 'visible' ? <Eye size={11} /> : <EyeOff size={11} />}
-                        {rev.status}
-                      </button>
+                      {rev.status === 'pending' ? (
+                        <div className="inline-flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-800">
+                            <Clock size={11} />
+                            Pending
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => approveReview(rev)}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-primary-dark"
+                          >
+                            <CheckCircle2 size={11} />
+                            Approve
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggleVisibility(rev)}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                            rev.status === 'visible'
+                              ? 'bg-primary-soft text-status-success'
+                              : 'bg-surface-muted text-text-muted'
+                          }`}
+                        >
+                          {rev.status === 'visible' ? <Eye size={11} /> : <EyeOff size={11} />}
+                          {rev.status === 'visible' ? 'Approved' : 'Hidden'}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
@@ -422,13 +485,14 @@ export default function AdminReviewsPage() {
                                 ? new Date(rev.reviewDate).toISOString().slice(0, 10)
                                 : new Date().toISOString().slice(0, 10),
                               isFeatured: Boolean(rev.isFeatured),
+                              status: rev.status || 'visible',
                               adminReply: rev.adminReply || '',
                             });
                             setModalOpen(true);
                           }}
                           className="btn-ghost min-h-[30px] px-2.5 text-xs"
                         >
-                          {rev.source === 'customer' ? 'Reply' : 'Edit'}
+                          {rev.source === 'customer' ? 'Moderate' : 'Edit'}
                         </button>
                         <button
                           type="button"
@@ -498,6 +562,18 @@ export default function AdminReviewsPage() {
                     <p className="text-[11px] text-text-muted italic">
                       Customer rating and text cannot be edited by admin.
                     </p>
+                  </div>
+                  <div>
+                    <label className="label-micro block mb-1.5">Approval Status</label>
+                    <select
+                      value={form.status}
+                      onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      className="input-field"
+                    >
+                      <option value="pending">Pending Approval</option>
+                      <option value="visible">Approved (Publish to Product Page)</option>
+                      <option value="hidden">Hidden</option>
+                    </select>
                   </div>
                   <div>
                     <label className="label-micro block mb-1.5">Public Admin Reply</label>

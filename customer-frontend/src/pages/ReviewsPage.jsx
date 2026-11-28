@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
-import { X } from 'lucide-react';
+import { PenLine } from 'lucide-react';
 import api from '../lib/api';
 import ReviewCard from '../components/common/ReviewCard';
 import BackButton from '../components/common/BackButton';
+import AddReviewModal from '../components/common/AddReviewModal';
+import ImageLightbox from '../components/common/ImageLightbox';
 
 export default function ReviewsPage() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [page, setPage] = useState(1);
   const [lightboxImg, setLightboxImg] = useState(null);
+  const [addReviewOpen, setAddReviewOpen] = useState(false);
 
   const { data: productsData } = useQuery({
     queryKey: ['products', 'all-mini'],
@@ -56,26 +59,35 @@ export default function ReviewsPage() {
             </p>
           </div>
 
-          <div className="sm:w-64">
-            <label htmlFor="filter-product" className="label-micro block mb-1.5">
-              Filter by Product
-            </label>
-            <select
-              id="filter-product"
-              value={selectedProduct}
-              onChange={(e) => {
-                setSelectedProduct(e.target.value);
-                setPage(1);
-              }}
-              className="input-field"
+          <div className="flex flex-wrap items-end gap-2.5 sm:gap-3">
+            <div className="flex-1 min-w-[180px] sm:w-64 sm:flex-initial">
+              <label htmlFor="filter-product" className="label-micro block mb-1.5">
+                Filter by Product
+              </label>
+              <select
+                id="filter-product"
+                value={selectedProduct}
+                onChange={(e) => {
+                  setSelectedProduct(e.target.value);
+                  setPage(1);
+                }}
+                className="input-field"
+              >
+                <option value="">All Products</option>
+                {products.map((p) => (
+                  <option key={p.slug} value={p.slug}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAddReviewOpen(true)}
+              className="btn-primary shrink-0"
             >
-              <option value="">All Products</option>
-              {products.map((p) => (
-                <option key={p.slug} value={p.slug}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <PenLine size={15} /> Add Review
+            </button>
           </div>
         </div>
 
@@ -117,26 +129,12 @@ export default function ReviewsPage() {
         )}
       </div>
 
-      {lightboxImg && (
-        <div
-          className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-black/75 p-4"
-          onClick={() => setLightboxImg(null)}
-        >
-          <button
-            type="button"
-            aria-label="Close preview"
-            onClick={() => setLightboxImg(null)}
-            className="absolute right-5 top-5 rounded-full bg-white/15 p-2 text-white"
-          >
-            <X size={22} />
-          </button>
-          <img
-            src={lightboxImg}
-            alt="Screenshot preview"
-            className="max-h-[85vh] max-w-full rounded-2xl object-contain"
-          />
-        </div>
-      )}
+      <AddReviewModal open={addReviewOpen} onClose={() => setAddReviewOpen(false)} />
+      <ImageLightbox
+        src={lightboxImg}
+        alt="Review image preview"
+        onClose={() => setLightboxImg(null)}
+      />
     </>
   );
 }

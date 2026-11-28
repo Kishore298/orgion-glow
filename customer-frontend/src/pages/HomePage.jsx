@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
-import { ArrowRight, Leaf, FlaskConical, HeartHandshake, X } from 'lucide-react';
+import { ArrowRight, Leaf, FlaskConical, HeartHandshake, PenLine } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../lib/api';
 import { handleImageError, isFallbackLogo, resolveImageUrl } from '../lib/format';
@@ -10,6 +10,8 @@ import { useSiteConfig } from '../hooks/useSiteConfig';
 import ProductCard from '../components/common/ProductCard';
 import WhyUsSection from '../components/common/WhyUsSection';
 import ReviewCard from '../components/common/ReviewCard';
+import AddReviewModal from '../components/common/AddReviewModal';
+import ImageLightbox from '../components/common/ImageLightbox';
 import { ProductCardSkeleton } from '../components/common/Skeletons';
 import {
   LUXURY_EASE,
@@ -21,6 +23,7 @@ import {
 export default function HomePage() {
   const siteConfig = useSiteConfig();
   const [lightboxImg, setLightboxImg] = useState(null);
+  const [addReviewOpen, setAddReviewOpen] = useState(false);
   const { data: categories = [], isLoading: catLoading } = useQuery({
     queryKey: ['categories', 'home'],
     queryFn: async () => {
@@ -294,12 +297,21 @@ export default function HomePage() {
               What Our Customers Say
             </h2>
           </div>
-          <Link
-            to="/reviews"
-            className="btn-ghost min-h-[36px] px-3.5 text-xs sm:text-sm self-start sm:self-auto"
-          >
-            View all reviews <ArrowRight size={14} />
-          </Link>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setAddReviewOpen(true)}
+              className="btn-primary min-h-[36px] px-3.5 text-xs sm:text-sm"
+            >
+              <PenLine size={14} /> Add Review
+            </button>
+            <Link
+              to="/reviews"
+              className="btn-ghost min-h-[36px] px-3.5 text-xs sm:text-sm"
+            >
+              View all reviews <ArrowRight size={14} />
+            </Link>
+          </div>
         </RevealSection>
 
         {featuredReviews.length > 0 ? (
@@ -317,26 +329,12 @@ export default function HomePage() {
         )}
       </section>
 
-      {lightboxImg && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
-          onClick={() => setLightboxImg(null)}
-        >
-          <button
-            type="button"
-            aria-label="Close preview"
-            onClick={() => setLightboxImg(null)}
-            className="absolute right-5 top-5 rounded-full bg-white/15 p-2 text-white"
-          >
-            <X size={22} />
-          </button>
-          <img
-            src={lightboxImg}
-            alt="Customer review screenshot"
-            className="max-h-[85vh] max-w-full rounded-2xl object-contain"
-          />
-        </div>
-      )}
+      <AddReviewModal open={addReviewOpen} onClose={() => setAddReviewOpen(false)} />
+      <ImageLightbox
+        src={lightboxImg}
+        alt="Customer review image"
+        onClose={() => setLightboxImg(null)}
+      />
     </>
   );
 }

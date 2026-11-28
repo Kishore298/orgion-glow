@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
-import { Check, Copy, Download, ExternalLink, Star, Truck } from 'lucide-react';
+import { Check, Copy, Download, ExternalLink, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { getErrorMessage } from '../lib/api';
 import { formatDate, formatINR, handleImageError, isFallbackLogo, resolveImageUrl } from '../lib/format';
 import { useSiteConfig } from '../hooks/useSiteConfig';
 import { PageSkeleton } from '../components/common/Skeletons';
+import StarRatingInput from '../components/common/StarRatingInput';
 
 const TIMELINE_STEPS = [
   { key: 'confirmed', label: 'Confirmed' },
@@ -18,11 +19,24 @@ const TIMELINE_STEPS = [
 ];
 
 function ProductRateRow({ orderRef, item, existingRating, onSubmitted }) {
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   if (existingRating) {
+    const statusLabel =
+      existingRating.status === 'visible'
+        ? 'Published'
+        : existingRating.status === 'hidden'
+          ? 'Hidden'
+          : 'Pending Admin Approval';
+    const statusClass =
+      existingRating.status === 'visible'
+        ? 'bg-primary-soft text-primary-dark'
+        : existingRating.status === 'hidden'
+          ? 'bg-surface text-text-muted border border-border'
+          : 'bg-amber-100 text-amber-800';
+
     return (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border bg-surface-muted p-4">
         <div className="flex items-center gap-3">
@@ -35,7 +49,12 @@ function ProductRateRow({ orderRef, item, existingRating, onSubmitted }) {
             }`}
           />
           <div>
-            <p className="font-serif text-base font-medium text-text">{item.name}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-serif text-base font-medium text-text">{item.name}</p>
+              <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium ${statusClass}`}>
+                {statusLabel}
+              </span>
+            </div>
             <p className="mt-0.5 text-xs font-medium text-primary-dark">
               You rated this {'★'.repeat(existingRating.rating)}
               {'☆'.repeat(5 - existingRating.rating)}
@@ -51,13 +70,17 @@ function ProductRateRow({ orderRef, item, existingRating, onSubmitted }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!rating || rating < 1 || rating > 5) {
+      toast.error('Please click the stars to select your rating');
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post(`/v1/orders/${orderRef}/items/${item.slug || item.product}/review`, {
         rating,
         comment,
       });
-      toast.success(`Thank you for rating ${item.name}!`);
+      toast.success(`Thank you! Your review for ${item.name} was sent for approval.`);
       onSubmitted();
     } catch (err) {
       if (!err?.isAuthRedirect) {
@@ -85,26 +108,13 @@ function ProductRateRow({ orderRef, item, existingRating, onSubmitted }) {
           />
           <div>
             <p className="font-serif text-base font-medium text-text">{item.name}</p>
-            <p className="text-xs text-text-muted">Select your star rating</p>
+            <p className="text-xs text-text-muted">
+              {rating > 0 ? `Selected ${rating} out of 5 stars` : 'Click stars to select your rating'}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              aria-label={`Rate ${star} stars`}
-              onClick={() => setRating(star)}
-              className="p-1"
-            >
-              <Star
-                size={22}
-                className={star <= rating ? 'fill-gold text-gold' : 'fill-transparent text-text-muted/55'}
-              />
-            </button>
-          ))}
-        </div>
+        <StarRatingInput value={rating} onChange={setRating} size={22} disabled={submitting} />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -391,7 +401,7 @@ export default function OrderDetailPage() {
               Rate Your Products
             </h2>
             <p className="mt-1 text-sm text-text-muted">
-              Share your experience once per product. Verified ratings publish immediately.
+              Share your experience once per product. Verified reviews are published on the product page after admin approval.
             </p>
 
             <div className="mt-4 space-y-3">

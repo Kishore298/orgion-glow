@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   MessageCircle,
   BadgeCheck,
+  PenLine,
   X,
   ZoomIn,
 } from 'lucide-react';
@@ -31,6 +32,8 @@ import ProductCard from '../components/common/ProductCard';
 import { showAddedToCartToast } from '../components/common/CartToast';
 import BackButton from '../components/common/BackButton';
 import WhatsAppButton from '../components/common/WhatsAppButton';
+import AddReviewModal from '../components/common/AddReviewModal';
+import ImageLightbox from '../components/common/ImageLightbox';
 import { PageSkeleton } from '../components/common/Skeletons';
 
 function AccordionItem({ title, isOpen, onToggle, children }) {
@@ -77,6 +80,7 @@ export default function ProductDetailPage() {
   const [reviewSort, setReviewSort] = useState('newest');
   const [reviewPage, setReviewPage] = useState(1);
   const [lightboxImg, setLightboxImg] = useState(null);
+  const [addReviewOpen, setAddReviewOpen] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const { data: product, isLoading } = useQuery({
@@ -442,23 +446,32 @@ export default function ProductDetailPage() {
                                             </h2>
                                           </div>
 
-                                          <div className="flex items-center gap-2">
-                                            <label htmlFor="review-sort" className="text-xs text-text-muted">
-                                              Sort:
-                                            </label>
-                                            <select
-                                              id="review-sort"
-                                              value={reviewSort}
-                                              onChange={(e) => {
-                                                setReviewSort(e.target.value);
-                                                setReviewPage(1);
-                                              }}
-                                              className="rounded-[10px] border border-border bg-surface px-3 py-2 text-xs text-text"
+                                          <div className="flex flex-wrap items-center gap-2.5">
+                                            <div className="flex items-center gap-2">
+                                              <label htmlFor="review-sort" className="text-xs text-text-muted">
+                                                Sort:
+                                              </label>
+                                              <select
+                                                id="review-sort"
+                                                value={reviewSort}
+                                                onChange={(e) => {
+                                                  setReviewSort(e.target.value);
+                                                  setReviewPage(1);
+                                                }}
+                                                className="rounded-[10px] border border-border bg-surface px-3 py-2 text-xs text-text"
+                                              >
+                                                <option value="newest">Newest</option>
+                                                <option value="highest">Highest Rating</option>
+                                                <option value="lowest">Lowest Rating</option>
+                                              </select>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => setAddReviewOpen(true)}
+                                              className="btn-primary min-h-[36px] px-3.5 text-xs"
                                             >
-                                              <option value="newest">Newest</option>
-                                              <option value="highest">Highest Rating</option>
-                                              <option value="lowest">Lowest Rating</option>
-                                            </select>
+                                              <PenLine size={14} /> Add Review
+                                            </button>
                                           </div>
                                         </div>
 
@@ -594,27 +607,18 @@ export default function ProductDetailPage() {
         )}
                                           </div>
 
-                                          {/* Screenshot Lightbox */}
-                                          {lightboxImg && (
-                                            <div
-                                              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
-                                              onClick={() => setLightboxImg(null)}
-                                            >
-                                              <button
-                                                type="button"
-                                                aria-label="Close image"
-                                                onClick={() => setLightboxImg(null)}
-                                                className="absolute right-5 top-5 rounded-full bg-white/15 p-2 text-white hover:bg-white/25"
-                                              >
-                                                <X size={22} />
-                                              </button>
-                                              <img
-                                                src={lightboxImg}
-                                                alt="Review screenshot preview"
-                                                className="max-h-[85vh] max-w-full rounded-2xl object-contain"
-                                              />
-                                            </div>
-                                          )}
+                                          <AddReviewModal
+                                            open={addReviewOpen}
+                                            onClose={() => setAddReviewOpen(false)}
+                                            initialProductId={product._id}
+                                            initialProductSlug={product.slug}
+                                          />
+
+                                          <ImageLightbox
+                                            src={lightboxImg}
+                                            alt="Review screenshot preview"
+                                            onClose={() => setLightboxImg(null)}
+                                          />
 
                                           <WhatsAppButton productName={product.name} />
                                         </>

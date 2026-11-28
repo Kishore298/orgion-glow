@@ -10,6 +10,7 @@ const router = express.Router();
 router.use(authenticate);
 router.post('/checkout', paymentLimiter, validate(checkoutSchema), orderController.checkout);
 router.get('/pending-reviews', orderController.getPendingReviews);
+router.get('/reviewable-items', orderController.getReviewableItems);
 router.get('/mine', orderController.getMyOrders);
 router.get('/:id', orderController.getOrderDetail);
 router.get('/:id/status', orderController.getOrderStatus);

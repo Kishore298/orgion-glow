@@ -296,7 +296,7 @@ const getOrderDetail = asyncHandler(async (req, res) => {
     order: order._id,
     source: 'customer',
   })
-    .select('product rating comment reviewDate')
+    .select('product rating comment reviewDate status')
     .lean();
 
   const ratedByProduct = {};
@@ -326,6 +326,74 @@ const downloadInvoice = asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="ORGION-Invoice-${order.orderNumber}.pdf"`);
   return res.send(pdfBuffer);
+});
+
+const getReviewableItems = asyncHandler(async (req, res) => {
+  const [deliveredOrders, inProgressCount] = await Promise.all([
+    Order.find({
+      user: req.user._id,
+      status: 'delivered',
+    })
+      .sort({ deliveredAt: -1, createdAt: -1 })
+      .select('orderNumber items deliveredAt updatedAt createdAt')
+      .lean(),
+    Order.countDocuments({
+      user: req.user._id,
+      paymentStatus: { $in: ['paid', 'partially_refunded'] },
+      status: { $in: ['confirmed', 'processing', 'shipped', 'out_for_delivery'] },
+    }),
+  ]);
+
+  if (deliveredOrders.length === 0) {
+    return sendSuccess(res, {
+      items: [],
+      hasInProgressOrders: inProgressCount > 0,
+    });
+  }
+
+  const orderIds = deliveredOrders.map((o) => o._id);
+  const existingReviews = await Review.find({
+    order: { $in: orderIds },
+    source: 'customer',
+  })
+    .select('order product rating comment status reviewDate')
+    .lean();
+
+  const reviewByOrderProduct = new Map();
+  for (const r of existingReviews) {
+    reviewByOrderProduct.set(`${String(r.order)}:${String(r.product)}`, {
+      rating: r.rating,
+      comment: r.comment,
+      status: r.status,
+      reviewDate: r.reviewDate,
+    });
+  }
+
+  const items = [];
+  for (const order of deliveredOrders) {
+    for (const item of order.items || []) {
+      const existingReview =
+        reviewByOrderProduct.get(`${String(order._id)}:${String(item.product)}`) || null;
+      items.push({
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        deliveredAt: order.deliveredAt || order.updatedAt || order.createdAt,
+        productId: item.product,
+        name: item.name,
+        slug: item.slug,
+        image: item.image,
+        existingReview,
+      });
+    }
+  }
+
+  // Unreviewed items first (newest delivered first), then already-reviewed items
+  items.sort((a, b) => Number(Boolean(a.existingReview)) - Number(Boolean(b.existingReview)));
+
+  return sendSuccess(res, {
+    items,
+    hasInProgressOrders: inProgressCount > 0,
+  });
 });
 
 const getPendingReviews = asyncHandler(async (req, res) => {
@@ -430,7 +498,7 @@ async function submitOrderItemReviewCore({ user, orderId, productId, rating, com
       user: user._id,
       order: order._id,
       isVerifiedPurchase: true,
-      status: 'visible',
+      status: 'pending',
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -453,7 +521,7 @@ const submitOrderItemReview = asyncHandler(async (req, res) => {
     rating,
     comment,
   });
-  return sendSuccess(res, review, 'Thank you for your rating!', 201);
+  return sendSuccess(res, review, 'Thank you! Your review has been submitted for admin approval.', 201);
 });
 
 module.exports = {
@@ -464,6 +532,7 @@ module.exports = {
   getOrderStatus,
   downloadInvoice,
   getPendingReviews,
+  getReviewableItems,
   dismissReviewPrompt,
   submitOrderItemReview,
   submitOrderItemReviewCore,

@@ -224,7 +224,7 @@ const listAdminReviews = asyncHandler(async (req, res) => {
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
 
-  const [items, total] = await Promise.all([
+  const [items, total, pendingCount] = await Promise.all([
     Review.find(filter)
       .populate('product', 'name slug images')
       .sort({ createdAt: -1 })
@@ -232,11 +232,13 @@ const listAdminReviews = asyncHandler(async (req, res) => {
       .limit(limitNum)
       .lean(),
     Review.countDocuments(filter),
+    Review.countDocuments({ status: 'pending' }),
   ]);
 
   return sendSuccess(res, {
     items,
     total,
+    pendingCount,
     page: pageNum,
     totalPages: Math.max(1, Math.ceil(total / limitNum)),
   });
@@ -295,11 +297,12 @@ const updateAdminReview = asyncHandler(async (req, res) => {
   const oldProductId = String(review.product);
 
   if (review.source === 'customer') {
-    // Customer-source ratings: admin may only moderate visibility, feature flag, or reply
-    if (req.body.status && ['visible', 'hidden'].includes(req.body.status)) {
+    // Customer-source ratings: admin may moderate approval/visibility and reply,
+    // and they are published on product pages only (never featured on Home).
+    if (req.body.status && ['pending', 'visible', 'hidden'].includes(req.body.status)) {
       review.status = req.body.status;
     }
-    if (req.body.isFeatured !== undefined) review.isFeatured = Boolean(req.body.isFeatured);
+    review.isFeatured = false;
     if (req.body.adminReply !== undefined) review.adminReply = String(req.body.adminReply).trim();
   } else {
     // WhatsApp-source review: full edit allowed
@@ -352,10 +355,10 @@ const bulkReviewAction = asyncHandler(async (req, res) => {
 
   if (action === 'hide') {
     await Review.updateMany({ _id: { $in: ids } }, { $set: { status: 'hidden' } });
-  } else if (action === 'show') {
+  } else if (action === 'show' || action === 'approve') {
     await Review.updateMany({ _id: { $in: ids } }, { $set: { status: 'visible' } });
   } else if (action === 'feature') {
-    await Review.updateMany({ _id: { $in: ids } }, { $set: { isFeatured: true } });
+    await Review.updateMany({ _id: { $in: ids }, source: 'whatsapp' }, { $set: { isFeatured: true } });
   } else if (action === 'unfeature') {
     await Review.updateMany({ _id: { $in: ids } }, { $set: { isFeatured: false } });
   } else if (action === 'delete') {

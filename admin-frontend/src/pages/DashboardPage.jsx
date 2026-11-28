@@ -403,9 +403,16 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {latestReviews.map((r) => (
               <div key={r._id} className="rounded-xl border border-border bg-surface-muted p-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-text">{r.reviewerName}</span>
-                  <span className="inline-flex items-center gap-1 text-gold font-semibold">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-semibold text-text truncate">{r.reviewerName}</span>
+                    {r.status === 'pending' && (
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-gold font-semibold shrink-0">
                     <Star size={12} className="fill-gold" /> {r.rating}
                   </span>
                 </div>
